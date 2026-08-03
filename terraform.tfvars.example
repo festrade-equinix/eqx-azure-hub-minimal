@@ -1,0 +1,62 @@
+###############################################################################
+# terraform.tfvars.example — Azure Hub (Dublin) via Equinix Network Edge
+#
+# Copy this file to terraform.tfvars and fill in your actual values.
+# Never commit secrets to Git — use TF_VAR_* environment variables instead
+# (see .env / README.md).
+###############################################################################
+
+# ─── Project ──────────────────────────────────────────────────────────────────
+project_name = "fred-azure-hub-dublin"
+environment  = "dev"
+owner        = "fred"
+
+# ─── Azure ────────────────────────────────────────────────────────────────────
+# Provide via environment variables to avoid storing secrets in files:
+# export TF_VAR_azure_subscription_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+azure_region = "northeurope"   # Dublin, Ireland
+
+# Existing resources
+azure_resource_group_name = "frederic.estrade_rg"
+azure_er_circuit_name     = "fred-er-dublin"
+
+# New hub network
+vnet_address_space     = "192.168.11.0/24"
+gateway_subnet_prefix  = "192.168.11.0/27"
+workload_subnet_prefix = "192.168.11.128/25"
+
+# Virtual Network Gateway
+vng_sku                   = "Standard"
+azure_er_fastpath_enabled = false
+# azure_er_authorization_key = ""   # Only needed for cross-subscription ER circuits
+
+# VM
+vm_size            = "Standard_B1s"
+vm_admin_username  = "fredadmin"
+# admin_ssh_public_key = ""   # Leave empty to auto-generate a keypair (saved as generated_ssh_key.pem)
+admin_source_cidr  = "203.0.113.10/32"   # TODO: restrict to your own public IP
+
+# ─── Equinix ──────────────────────────────────────────────────────────────────
+# export TF_VAR_equinix_client_id="your-client-id"
+# export TF_VAR_equinix_client_secret="your-client-secret"
+
+equinix_azure_metro_code = "DB"   # Dublin
+
+# Existing Network Edge device (fred-cisco-PA, Paris — remote connection)
+equinix_ne_device_uuid   = "371987e0-43fe-4328-a251-039bdc598c0a"
+equinix_sp_azure_er_uuid = "a1390b22-bbe0-4e93-ad37-85beef9d254d"
+
+# Fabric Connections — created by Terraform (Mbps)
+ne_azure_bandwidth_mbps = 50
+
+# ─── Network Edge BGP — Azure ExpressRoute ────────────────────────────────────
+azure_vlan_id               = 300
+azure_primary_peer_subnet   = "172.20.0.0/30"
+azure_secondary_peer_subnet = "172.20.0.4/30"
+azure_microsoft_bgp_asn     = 12076
+# bgp_auth_key               = "secret"   # Prefer TF_VAR_bgp_auth_key
+
+# ─── Notifications & Billing ──────────────────────────────────────────────────
+notification_emails = ["frederic.estrade@eu.equinix.com"]
+po_number            = "PO-000001"
