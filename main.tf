@@ -363,6 +363,20 @@ resource "azurerm_network_security_rule" "allow_icmp" {
   network_security_group_name = azurerm_network_security_group.workload.name
 }
 
+resource "azurerm_network_security_rule" "allow_icmp_onprem" {
+  name                        = "allow-icmp-onprem"
+  priority                    = 120
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Icmp"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = var.onprem_test_prefix
+  destination_address_prefix  = "*"
+  resource_group_name         = data.azurerm_resource_group.this.name
+  network_security_group_name = azurerm_network_security_group.workload.name
+}
+
 resource "azurerm_subnet_network_security_group_association" "workload" {
   subnet_id                 = azurerm_subnet.workload.id
   network_security_group_id = azurerm_network_security_group.workload.id

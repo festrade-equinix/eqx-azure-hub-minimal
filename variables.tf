@@ -136,6 +136,12 @@ variable "admin_source_cidr" {
   type        = string
 }
 
+variable "onprem_test_prefix" {
+  description = "On-prem (NE-side) prefix allowed to ping the VM over the ExpressRoute path, for BGP connectivity testing. E.g. a loopback on fred-cisco-PA advertised into BGP."
+  type        = string
+  default     = "10.11.0.1/32"
+}
+
 # ─── Equinix — Provider ───────────────────────────────────────────────────────
 
 variable "equinix_client_id" {

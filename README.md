@@ -242,6 +242,48 @@ Once applied, verify via the Azure Portal → `fred-er-dublin` →
 **Circuit Status** tab: ARP/BGP Availability should flip from "Not
 Available" to available for both Primary and Secondary IPv4.
 
+## End-to-end ping test
+
+`10.11.0.1` doesn't exist on fred-cisco-PA yet — it's a loopback added
+purely to prove the BGP path end-to-end. It must be advertised into BGP or
+Azure will never learn a route to it; the workload subnet's route table
+already has `bgp_route_propagation_enabled = true` (`azurerm_route_table.
+workload`), so once advertised, Azure picks up the route automatically —
+no manual Azure route needed. The reverse direction (VM → router) needs no
+extra config on the Cisco side, but Azure must allow inbound ICMP from
+`10.11.0.1` — that's `azurerm_network_security_rule.allow_icmp_onprem`
+(`var.onprem_test_prefix`, applied).
+
+On fred-cisco-PA, in addition to the BGP config above:
+
+```
+interface Loopback0
+ description BGP connectivity test
+ ip address 10.11.0.1 255.255.255.255
+!
+router bgp 65001
+ address-family ipv4
+  network 10.11.0.1 mask 255.255.255.255
+ exit-address-family
+```
+
+Then test both directions:
+
+```bash
+# From the VM (SSH in first)
+ssh fredadmin@$(terraform output -raw vm_public_ip)
+ping -c 4 10.11.0.1
+
+# From fred-cisco-PA (via Equinix Portal console)
+ping 192.168.11.132 source Loopback0
+```
+
+If the VM → router direction fails but router → VM works (or vice versa),
+check `terraform output equinix_ne_bgp_to_azure_primary_state` /
+`_secondary_state` and the NSG rule priorities (`allow-icmp-onprem` is 120,
+after `allow-ssh`/`allow-icmp` at 100/110 — no conflict, but a stricter
+custom rule added later at a lower priority number would shadow it).
+
 ## Key design notes
 
 - **Redundancy is mandatory** — the Azure ExpressRoute service profile sets
