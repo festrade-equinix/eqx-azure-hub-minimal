@@ -92,7 +92,7 @@ data "equinix_fabric_service_profile" "azure_er" {
 ###############################################################################
 
 resource "equinix_fabric_connection" "ne_to_azure_primary" {
-  name      = "fred-ne-pa-azure-pri"
+  name      = "${var.equinix_connection_prefix}-azure-pri"
   type      = "EVPL_VC"
   bandwidth = var.ne_azure_bandwidth_mbps
 
@@ -146,7 +146,7 @@ resource "equinix_fabric_connection" "ne_to_azure_primary" {
 ###############################################################################
 
 resource "equinix_fabric_connection" "ne_to_azure_secondary" {
-  name      = "fred-ne-pa-azure-sec"
+  name      = "${var.equinix_connection_prefix}-azure-sec"
   type      = "EVPL_VC"
   bandwidth = var.ne_azure_bandwidth_mbps
 
@@ -254,7 +254,7 @@ resource "equinix_network_bgp" "to_azure_secondary" {
 ###############################################################################
 
 resource "azurerm_virtual_network" "hub" {
-  name                = "fred-vnet-hub-dublin"
+  name                = "${var.project_name}-vnet"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
   address_space       = [var.vnet_address_space]
@@ -271,7 +271,7 @@ resource "azurerm_subnet" "gateway" {
 }
 
 resource "azurerm_subnet" "workload" {
-  name                 = "fred-snet-workload-dublin"
+  name                 = "${var.project_name}-snet-workload"
   resource_group_name  = data.azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.hub.name
   address_prefixes     = [var.workload_subnet_prefix]
@@ -282,7 +282,7 @@ resource "azurerm_subnet" "workload" {
 ###############################################################################
 
 resource "azurerm_virtual_network_gateway" "hub" {
-  name                = "fred-vng-hub-dublin"
+  name                = "${var.project_name}-vng"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -306,7 +306,7 @@ resource "azurerm_virtual_network_gateway" "hub" {
 ###############################################################################
 
 resource "azurerm_virtual_network_gateway_connection" "er" {
-  name                = "fred-vng-conn-er-dublin"
+  name                = "${var.project_name}-vng-conn-er"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -328,7 +328,7 @@ resource "azurerm_virtual_network_gateway_connection" "er" {
 ###############################################################################
 
 resource "azurerm_network_security_group" "workload" {
-  name                = "fred-nsg-workload-dublin"
+  name                = "${var.project_name}-nsg-workload"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -387,7 +387,7 @@ resource "azurerm_subnet_network_security_group_association" "workload" {
 ###############################################################################
 
 resource "azurerm_route_table" "workload" {
-  name                          = "fred-rt-workload-dublin"
+  name                          = "${var.project_name}-rt-workload"
   location                      = var.azure_region
   resource_group_name           = data.azurerm_resource_group.this.name
   bgp_route_propagation_enabled = true
@@ -414,7 +414,7 @@ resource "azurerm_ssh_public_key" "fred" {
 }
 
 resource "azurerm_public_ip" "vm" {
-  name                = "fred-pip-vm-dublin"
+  name                = "${var.project_name}-pip-vm"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
   allocation_method   = "Static"
@@ -424,7 +424,7 @@ resource "azurerm_public_ip" "vm" {
 }
 
 resource "azurerm_network_interface" "vm" {
-  name                = "fred-nic-vm-dublin"
+  name                = "${var.project_name}-nic-vm"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -439,7 +439,7 @@ resource "azurerm_network_interface" "vm" {
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                  = "fred-vm-dublin"
+  name                  = "${var.project_name}-vm"
   location              = var.azure_region
   resource_group_name   = data.azurerm_resource_group.this.name
   size                  = var.vm_size
