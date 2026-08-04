@@ -217,7 +217,9 @@ interface GigabitEthernet5
 !
 router bgp 65001
  neighbor 172.20.0.1 remote-as 12076
+ neighbor 172.20.0.1 password <TF_VAR_bgp_auth_key from .env>
  neighbor 172.20.0.5 remote-as 12076
+ neighbor 172.20.0.5 password <TF_VAR_bgp_auth_key from .env>
  !
  address-family ipv4
   neighbor 172.20.0.1 activate
@@ -226,6 +228,8 @@ router bgp 65001
   neighbor 172.20.0.5 soft-reconfiguration inbound
  exit-address-family
 ```
+
+The MD5 key (`TF_VAR_bgp_auth_key` in `.env`) was already applied as `shared_key` on the Azure peering during `terraform apply` — both neighbor passwords above must match it exactly (`neighbor <ip> password <string>`, no `0`/`7` prefix needed when typing the plaintext secret fresh) or the sessions will fail to authenticate.
 
 Apply via the Equinix Portal's device console (Network Edge → fred-cisco-PA →
 Console), which bypasses the management ACL — direct SSH to
