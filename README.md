@@ -1,4 +1,4 @@
-# Azure Hub (Dublin) — via Equinix Network Edge (Paris)
+# Azure Hub (Minimal setup) - connected to existing Equinix Network Edge
 
 Minimal reference architecture: an Azure hub VNet connected to an existing
 Equinix Network Edge device over a redundant ExpressRoute Fabric connection,
@@ -6,155 +6,24 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 
 ## Summary
 
-- [Architecture](#architecture) — diagram of what's existing vs. created
-- [Resource inventory](#resource-inventory) — every resource this Terraform touches
-- [Prerequisites](#prerequisites) — tools, access, and existing infra you need before running this
-- [Required configuration](#required-configuration) — every variable you must fill in with your own values
-- [Why this device + circuit](#why-this-device--circuit) — design rationale for the NE device and ER circuit used
-- [Deployment](#deployment) — step-by-step apply instructions
-- [Manual BGP config](#manual-bgp-config-fred-cisco-pa-is-self-managed) — required manual step for self-managed NE devices
-- [End-to-end ping test](#end-to-end-ping-test) — optional connectivity proof
-- [Key design notes](#key-design-notes) — non-obvious decisions and constraints
-- [Teardown](#teardown)
+- [1. Required configuration](#1-required-configuration) — every variable you must fill in with your own values
+- [2. Prerequisites](#2-prerequisites) — tools, access, and existing infra you need before running this
+- [3. Architecture](#3-architecture) — diagram of what's existing vs. created
+- [4. Resource inventory](#4-resource-inventory) — every resource this Terraform touches
+- [5. Why this device + circuit](#5-why-this-device--circuit) — design rationale for the NE device and ER circuit used
+- [6. Deployment](#6-deployment) — step-by-step apply instructions
+- [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed) — required manual step for self-managed NE devices
+- [8. End-to-end ping test](#8-end-to-end-ping-test) — optional connectivity proof
+- [9. Key design notes](#9-key-design-notes) — non-obvious decisions and constraints
+- [10. Teardown](#10-teardown)
 
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  EQUINIX  (Paris PA)                                                     │
-│                                                                          │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │  Network Edge — fred-cisco-PA  [existing]                          │ │
-│  │                                                                    │ │
-│  │   ├── EVPL_VC PRIMARY   ──────────────────────► Azure ExpressRoute │ │
-│  │   │   auth_key = ER Circuit service_key (remote, Paris → Dublin)   │ │
-│  │   │   BGP: 172.20.0.2/30 ↔ 172.20.0.1  ASN <device> ↔ 12076        │ │
-│  │   │                                                                │ │
-│  │   └── EVPL_VC SECONDARY ──────────────────────► Azure ExpressRoute │ │
-│  │       redundancy group = primary's group                          │ │
-│  │       BGP: 172.20.0.6/30 ↔ 172.20.0.5  ASN <device> ↔ 12076        │ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-└───────────────────────────────┬──────────────────────────────────────────┘
-                                 │ Cross-connect (remote / cross-metro)
-                                 ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Azure  (North Europe — Dublin)                                          │
-│                                                                          │
-│  ┌────────────────────────────┐                                        │
-│  │  ExpressRoute Circuit       │  fred-er-dublin  [existing]            │
-│  │  Provider: Equinix          │                                        │
-│  │  Peering location: Dublin   │                                        │
-│  └──────────────┬───────────────┘                                        │
-│                 │                                                        │
-│  ┌──────────────▼───────────────┐                                        │
-│  │  Private Peering  [new]      │  Primary:   172.20.0.0/30              │
-│  │                               │  Secondary: 172.20.0.4/30              │
-│  └──────────────┬───────────────┘                                        │
-│                 │                                                        │
-│  ┌──────────────▼───────────────┐                                        │
-│  │  VNet Gateway Connection [new]│                                       │
-│  └──────────────┬───────────────┘                                        │
-│                 │                                                        │
-│  ┌──────────────▼───────────────┐                                        │
-│  │  Virtual Network Gateway [new]│  SKU: Standard, type: ExpressRoute    │
-│  └──────────────┬───────────────┘                                        │
-│                 │                                                        │
-│  ┌──────────────▼───────────────┐                                        │
-│  │  VNet fred-vnet-hub-dublin[new]│ 192.168.11.0/24                      │
-│  │   ├─ GatewaySubnet             │ 192.168.11.0/27                      │
-│  │   └─ fred-snet-workload-dublin │ 192.168.11.128/25                    │
-│  │        ├─ NSG (SSH + ICMP)     │ [new]                                │
-│  │        ├─ Route table (BGP     │ [new]                                │
-│  │        │   propagation on)     │                                     │
-│  │        └─ fred-vm-dublin (VM)  │ [new]                                │
-│  └────────────────────────────────┘                                     │
-└──────────────────────────────────────────────────────────────────────────┘
-
-[existing] = data source — never modified by Terraform
-[new]      = resource   — created by Terraform
-```
-
-## Resource inventory
-
-| # | Resource | Provider | Action |
-|---|---|---|---|
-| | ExpressRoute Circuit (fred-er-dublin) | Azure | `data` — by name + RG |
-| | Resource Group | Azure | `data` — frederic.estrade_rg |
-| | Network Edge device (fred-cisco-PA) | Equinix | `data` — by UUID |
-| | Azure ER service profile | Equinix | `data` — by UUID |
-| 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
-| 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
-| 3 | **NE BGP → Azure ER, primary session** | **Equinix** | **resource — equinix_network_bgp** |
-| 4 | **NE BGP → Azure ER, secondary session** | **Equinix** | **resource — equinix_network_bgp** |
-| 5 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
-| 6 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
-| 7 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
-| 8 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
-| 9 | **NSG (allow SSH + ICMP)** | **Azure** | **resource — associated to workload subnet** |
-| 10 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
-| 11 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
-
-## Prerequisites
-
-### Tools
-
-| Tool | Min version | Used for |
-|---|---|---|
-| Terraform | >= 1.5.0 | Everything in this repo |
-| Azure CLI (`az`) | >= 2.x | `az login` — the `azurerm` provider picks up this session automatically |
-| `ssh` / an Equinix Portal login | — | Manual BGP config step (see below) — Equinix's managed config-push API does not reach self-managed NE devices |
-
-### Access you need before you start
-
-- **Azure**: a subscription with `Contributor` (or equivalent) on the target
-  Resource Group — this Terraform creates a VNet, subnets, a Virtual Network
-  Gateway, a VM, NSG, route table, and an ExpressRoute private peering.
-  `Network Contributor` alone is not enough (it also creates a VM).
-- **Equinix Fabric**: an API Client ID/Secret from
-  [developer.equinix.com](https://developer.equinix.com) with access to the
-  project containing your Network Edge device, scoped to create Fabric
-  Connections and (if applicable) configure NE BGP.
-- **Equinix Portal login**: to reach the Network Edge device's console for
-  the manual BGP step, if your device is self-managed/BYOL (see
-  [Manual BGP config](#manual-bgp-config-fred-cisco-pa-is-self-managed)).
-
-### Existing infrastructure this Terraform expects to already exist
-
-This repo does **not** create these — it looks them up as data sources and
-connects to them. Have them ready before running `terraform apply`:
-
-| Existing resource | Where to get its identifier |
-|---|---|
-| Azure Resource Group | Azure Portal, or `az group list -o table` |
-| Azure ExpressRoute Circuit (provider = Equinix, already has a service key) | `az network express-route list -o table` |
-| Equinix Network Edge device | Equinix Portal → Network Edge → Devices → device UUID |
-| Azure ExpressRoute service profile in the Fabric marketplace | Equinix Portal → Fabric marketplace, search "Azure ExpressRoute", or the Fabric API's `search_service_profiles` |
-
-### Planning inputs to gather first
-
-- A short, unique **name/handle prefix** for the two Fabric connections this
-  creates (`equinix_connection_prefix`, ≤ 14 chars) — avoids collisions if
-  multiple people deploy from this template into the same Equinix account.
-- Your **NE device's configured BGP ASN** (`customer_bgp_asn`) — the
-  `equinix_network_device` data source does not reliably report this; you
-  need to know it independently (check the device's running config or your
-  own records).
-- A **VLAN ID** (`azure_vlan_id`) not already in use on your NE device's
-  port, and two **/30 subnets** (`azure_primary_peer_subnet`,
-  `azure_secondary_peer_subnet`) not already used for another BGP session on
-  the same device.
-- A **VNet address space** (`vnet_address_space` + the two subnet prefixes)
-  that doesn't overlap any network you'll eventually peer or route to.
-- Your own **SSH public key** and **public IP** (for `admin_ssh_public_key`
-  and `admin_source_cidr`) — `curl ifconfig.me` gets the latter.
-
-## Required configuration
+## 1. Required configuration
 
 Every variable below has **no default** — Terraform will refuse to run
 (`No value for required variable`) until you set it, rather than silently
 reusing someone else's resources. Set these in `terraform.tfvars` (copy from
 `terraform.tfvars.example`) or as `TF_VAR_*` environment variables for the
-sensitive ones (see `.env` pattern below).
+sensitive ones (see `.env` pattern in [Deployment](#6-deployment)).
 
 | Variable | Sensitive? | What it is | Where to get it |
 |---|---|---|---|
@@ -189,7 +58,119 @@ Everything else (`vng_sku`, `vm_size`, `azure_er_fastpath_enabled`,
 `po_number`, `azure_region`, `environment`) has a generic default that's
 reasonable to leave as-is for a first deployment.
 
-## Why this device + circuit
+## 2. Prerequisites
+
+### Tools
+
+| Tool | Min version | Used for |
+|---|---|---|
+| Terraform | >= 1.5.0 | Everything in this repo |
+| Azure CLI (`az`) | >= 2.x | `az login` — the `azurerm` provider picks up this session automatically |
+| `ssh` / an Equinix Portal login | — | Manual BGP config step (see below) — Equinix's managed config-push API does not reach self-managed NE devices |
+
+### Access you need before you start
+
+- **Azure**: a subscription with `Contributor` (or equivalent) on the target
+  Resource Group — this Terraform creates a VNet, subnets, a Virtual Network
+  Gateway, a VM, NSG, route table, and an ExpressRoute private peering.
+  `Network Contributor` alone is not enough (it also creates a VM).
+- **Equinix Fabric**: an API Client ID/Secret from
+  [developer.equinix.com](https://developer.equinix.com) with access to the
+  project containing your Network Edge device, scoped to create Fabric
+  Connections and (if applicable) configure NE BGP.
+- **Equinix Portal login**: to reach the Network Edge device's console for
+  the manual BGP step, if your device is self-managed/BYOL (see
+  [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed)).
+
+### Existing infrastructure this Terraform expects to already exist
+
+This repo does **not** create these — it looks them up as data sources and
+connects to them. Have them ready before running `terraform apply`:
+
+| Existing resource | Where to get its identifier |
+|---|---|
+| Azure Resource Group | Azure Portal, or `az group list -o table` |
+| Azure ExpressRoute Circuit (provider = Equinix, already has a service key) | `az network express-route list -o table` |
+| Equinix Network Edge device | Equinix Portal → Network Edge → Devices → device UUID |
+| Azure ExpressRoute service profile in the Fabric marketplace | Equinix Portal → Fabric marketplace, search "Azure ExpressRoute", or the Fabric API's `search_service_profiles` |
+
+### Planning inputs to gather first
+
+- A short, unique **name/handle prefix** for the two Fabric connections this
+  creates (`equinix_connection_prefix`, ≤ 14 chars) — avoids collisions if
+  multiple people deploy from this template into the same Equinix account.
+- Your **NE device's configured BGP ASN** (`customer_bgp_asn`) — the
+  `equinix_network_device` data source does not reliably report this; you
+  need to know it independently (check the device's running config or your
+  own records).
+- A **VLAN ID** (`azure_vlan_id`) not already in use on your NE device's
+  port, and two **/30 subnets** (`azure_primary_peer_subnet`,
+  `azure_secondary_peer_subnet`) not already used for another BGP session on
+  the same device.
+- A **VNet address space** (`vnet_address_space` + the two subnet prefixes)
+  that doesn't overlap any network you'll eventually peer or route to.
+- Your own **SSH public key** and **public IP** (for `admin_ssh_public_key`
+  and `admin_source_cidr`) — `curl ifconfig.me` gets the latter.
+
+## 3. Architecture
+
+```
+Equinix Fabric — Paris (PA metro)
+    │
+    ▼
+fred-cisco-PA  (Network Edge device — existing, self-managed/BYOL Cisco C8000v)
+    │   two redundant Fabric connections (EVPL_VC), remote/cross-metro to Dublin
+    │
+    ├──▶ Fabric VC PRIMARY    → Azure ExpressRoute service profile
+    │       auth_key = ER Circuit service_key
+    │       BGP 172.20.0.2/30 ↔ 172.20.0.1   ASN <device> ↔ 12076
+    │
+    └──▶ Fabric VC SECONDARY  → Azure ExpressRoute service profile
+            redundancy group = PRIMARY's group
+            BGP 172.20.0.6/30 ↔ 172.20.0.5   ASN <device> ↔ 12076
+
+Azure — North Europe (Dublin)
+    │
+    ▼
+fred-er-dublin  (ExpressRoute Circuit — existing, provider Equinix)
+    │   AzurePrivatePeering — created
+    │     primary   172.20.0.0/30
+    │     secondary 172.20.0.4/30
+    ▼
+Virtual Network Gateway  (created — SKU Standard, type ExpressRoute)
+    │   VNet Gateway ↔ ER Circuit connection — created
+    ▼
+fred-vnet-hub-dublin  (VNet — created, 192.168.11.0/24)
+    ├── GatewaySubnet              192.168.11.0/27
+    └── fred-snet-workload-dublin  192.168.11.128/25
+            ├─ NSG fred-nsg-workload-dublin        (created — allow SSH + ICMP)
+            ├─ Route table fred-rt-workload-dublin  (created — BGP propagation on)
+            └─ fred-vm-dublin                       (created — Linux VM)
+```
+
+`(existing)` = data source, never modified by Terraform · `(created)` = resource created by Terraform
+
+## 4. Resource inventory
+
+| # | Resource | Provider | Action |
+|---|---|---|---|
+| | ExpressRoute Circuit (fred-er-dublin) | Azure | `data` — by name + RG |
+| | Resource Group | Azure | `data` — frederic.estrade_rg |
+| | Network Edge device (fred-cisco-PA) | Equinix | `data` — by UUID |
+| | Azure ER service profile | Equinix | `data` — by UUID |
+| 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
+| 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
+| 3 | **NE BGP → Azure ER, primary session** | **Equinix** | **resource — equinix_network_bgp** |
+| 4 | **NE BGP → Azure ER, secondary session** | **Equinix** | **resource — equinix_network_bgp** |
+| 5 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
+| 6 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
+| 7 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
+| 8 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
+| 9 | **NSG (allow SSH + ICMP)** | **Azure** | **resource — associated to workload subnet** |
+| 10 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
+| 11 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
+
+## 5. Why this device + circuit
 
 - **fred-cisco-PA** (uuid `371987e0-43fe-4328-a251-039bdc598c0a`) is an existing
   Network Edge device in the Paris (PA) metro. Its connections to Azure in
@@ -206,7 +187,7 @@ reasonable to leave as-is for a first deployment.
   redundancy group Equinix assigns to the primary
   (`one(equinix_fabric_connection.ne_to_azure_primary.redundancy).group`).
 
-## Deployment
+## 6. Deployment
 
 > **`terraform.tfstate` contains plaintext secrets** — the Cisco device's
 > admin password, the ExpressRoute circuit's service key, and the BGP MD5
@@ -305,7 +286,7 @@ az network vpn-connection show \
 ssh fredadmin@$(terraform output -raw vm_public_ip)
 ```
 
-## Manual BGP config (fred-cisco-PA is self-managed)
+## 7. Manual BGP config (fred-cisco-PA is self-managed)
 
 `equinix_network_bgp` cannot configure this device — Equinix's managed
 config-push API is only available for Equinix-managed devices, and
@@ -356,7 +337,7 @@ Once applied, verify via the Azure Portal → `fred-er-dublin` →
 **Circuit Status** tab: ARP/BGP Availability should flip from "Not
 Available" to available for both Primary and Secondary IPv4.
 
-## End-to-end ping test
+## 8. End-to-end ping test
 
 `10.11.0.1` doesn't exist on fred-cisco-PA yet — it's a loopback added
 purely to prove the BGP path end-to-end. It must be advertised into BGP or
@@ -398,7 +379,7 @@ check `terraform output equinix_ne_bgp_to_azure_primary_state` /
 after `allow-ssh`/`allow-icmp` at 100/110 — no conflict, but a stricter
 custom rule added later at a lower priority number would shadow it).
 
-## Key design notes
+## 9. Key design notes
 
 - **Redundancy is mandatory** — the Azure ExpressRoute service profile sets
   `connection_redundancy_required = true`; there is no non-redundant path.
@@ -421,7 +402,7 @@ custom rule added later at a lower priority number would shadow it).
 - **NE BGP (equinix_network_bgp)** — works natively on the Cisco NE device
   via the Equinix Network Edge API; no SSH/Ansible workaround required.
 
-## Teardown
+## 10. Teardown
 
 ```bash
 # ⚠️  This immediately disrupts hybrid connectivity to Azure and deletes the VM.
