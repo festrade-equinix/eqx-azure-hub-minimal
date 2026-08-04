@@ -144,6 +144,12 @@ terraform apply -target=equinix_fabric_connection.ne_to_azure_secondary
 terraform apply -target=azurerm_express_route_circuit_peering.private
 
 # Step 3 — Equinix: NE BGP routing (primary + secondary)
+# NOTE: fred-cisco-PA is a self-managed/BYOL device (confirmed via
+# equinix_network_device.self_managed = true). The Equinix-managed config-push
+# API that equinix_network_bgp relies on only works for Equinix-managed
+# devices — for self-managed ones it 500s ("failed to fetch BGP configuration
+# for connection ..."). These two applies WILL fail; skip them and configure
+# BGP manually instead (see "Manual BGP config" below).
 terraform apply -target=equinix_network_bgp.to_azure_primary
 terraform apply -target=equinix_network_bgp.to_azure_secondary
 
@@ -181,10 +187,56 @@ az network vpn-connection show \
   --resource-group frederic.estrade_rg \
   --name fred-vng-conn-er-dublin
 
-# SSH to the VM (key auto-generated at generated_ssh_key.pem unless
-# admin_ssh_public_key was set)
-ssh -i generated_ssh_key.pem fredadmin@$(terraform output -raw vm_public_ip)
+# SSH to the VM using the fred-ssh-key private key
+ssh fredadmin@$(terraform output -raw vm_public_ip)
 ```
+
+## Manual BGP config (fred-cisco-PA is self-managed)
+
+`equinix_network_bgp` cannot configure this device — Equinix's managed
+config-push API is only available for Equinix-managed devices, and
+`equinix_network_device.self_managed` reads `true` for fred-cisco-PA. Each
+Fabric connection binds to its own dedicated interface (not a VLAN
+sub-interface); confirm via `terraform state show
+data.equinix_network_device.this` (`interface[].assigned_type`) before
+applying, since interface numbers can shift if connections are recreated.
+
+At time of writing: primary → `GigabitEthernet9`, secondary →
+`GigabitEthernet5`.
+
+```
+interface GigabitEthernet9
+ description Equinix Fabric VC to Azure ER Dublin - PRIMARY (fred-ne-pa-azure-pri)
+ ip address 172.20.0.2 255.255.255.252
+ no shutdown
+!
+interface GigabitEthernet5
+ description Equinix Fabric VC to Azure ER Dublin - SECONDARY (fred-ne-pa-azure-sec)
+ ip address 172.20.0.6 255.255.255.252
+ no shutdown
+!
+router bgp 65001
+ neighbor 172.20.0.1 remote-as 12076
+ neighbor 172.20.0.5 remote-as 12076
+ !
+ address-family ipv4
+  neighbor 172.20.0.1 activate
+  neighbor 172.20.0.1 soft-reconfiguration inbound
+  neighbor 172.20.0.5 activate
+  neighbor 172.20.0.5 soft-reconfiguration inbound
+ exit-address-family
+```
+
+Apply via the Equinix Portal's device console (Network Edge → fred-cisco-PA →
+Console), which bypasses the management ACL — direct SSH to
+`ssh_ip_address`/`ssh_ip_fqdn` (see `terraform state show
+data.equinix_network_device.this`) timed out from this environment, most
+likely blocked by the device's mgmt ACL template
+(`mgmt_acl_template_uuid`) not allow-listing the source IP.
+
+Once applied, verify via the Azure Portal → `fred-er-dublin` →
+**Circuit Status** tab: ARP/BGP Availability should flip from "Not
+Available" to available for both Primary and Secondary IPv4.
 
 ## Key design notes
 

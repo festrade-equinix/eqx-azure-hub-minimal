@@ -2,8 +2,7 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+tfplan
 terraform.tfvars
 .env
-generated_ssh_key.pem
-generated_ssh_key.pem.pub
 crash.log

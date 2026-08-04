@@ -33,14 +33,6 @@ terraform {
       source  = "equinix/equinix"
       version = ">= 1.20, < 5.0"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = ">= 4.0"
-    }
-    local = {
-      source  = "hashicorp/local"
-      version = ">= 2.4"
-    }
   }
 }
 
@@ -100,7 +92,7 @@ data "equinix_fabric_service_profile" "azure_er" {
 ###############################################################################
 
 resource "equinix_fabric_connection" "ne_to_azure_primary" {
-  name      = "fred-ne-pa-to-azure-er-dub-pri"
+  name      = "fred-ne-pa-azure-pri"
   type      = "EVPL_VC"
   bandwidth = var.ne_azure_bandwidth_mbps
 
@@ -116,7 +108,8 @@ resource "equinix_fabric_connection" "ne_to_azure_primary" {
 
   z_side {
     access_point {
-      type = "SP"
+      type         = "SP"
+      peering_type = "PRIVATE"
       profile {
         type = "L2_PROFILE"
         uuid = data.equinix_fabric_service_profile.azure_er.id
@@ -153,7 +146,7 @@ resource "equinix_fabric_connection" "ne_to_azure_primary" {
 ###############################################################################
 
 resource "equinix_fabric_connection" "ne_to_azure_secondary" {
-  name      = "fred-ne-pa-to-azure-er-dub-sec"
+  name      = "fred-ne-pa-azure-sec"
   type      = "EVPL_VC"
   bandwidth = var.ne_azure_bandwidth_mbps
 
@@ -169,7 +162,8 @@ resource "equinix_fabric_connection" "ne_to_azure_secondary" {
 
   z_side {
     access_point {
-      type = "SP"
+      type         = "SP"
+      peering_type = "PRIVATE"
       profile {
         type = "L2_PROFILE"
         uuid = data.equinix_fabric_service_profile.azure_er.id
@@ -214,7 +208,7 @@ resource "azurerm_express_route_circuit_peering" "private" {
   resource_group_name           = data.azurerm_resource_group.this.name
 
   vlan_id                       = var.azure_vlan_id
-  peer_asn                      = data.equinix_network_device.this.asn
+  peer_asn                      = var.customer_bgp_asn
 
   primary_peer_address_prefix   = var.azure_primary_peer_subnet
   secondary_peer_address_prefix = var.azure_secondary_peer_subnet
@@ -235,8 +229,8 @@ resource "azurerm_express_route_circuit_peering" "private" {
 
 resource "equinix_network_bgp" "to_azure_primary" {
   connection_id      = equinix_fabric_connection.ne_to_azure_primary.id
-  local_ip_address   = cidrhost(var.azure_primary_peer_subnet, 2)
-  local_asn          = data.equinix_network_device.this.asn
+  local_ip_address   = "${cidrhost(var.azure_primary_peer_subnet, 2)}/${element(split("/", var.azure_primary_peer_subnet), 1)}"
+  local_asn          = var.customer_bgp_asn
   remote_ip_address  = cidrhost(var.azure_primary_peer_subnet, 1)
   remote_asn         = var.azure_microsoft_bgp_asn
   authentication_key = var.bgp_auth_key != "" ? var.bgp_auth_key : null
@@ -246,8 +240,8 @@ resource "equinix_network_bgp" "to_azure_primary" {
 
 resource "equinix_network_bgp" "to_azure_secondary" {
   connection_id      = equinix_fabric_connection.ne_to_azure_secondary.id
-  local_ip_address   = cidrhost(var.azure_secondary_peer_subnet, 2)
-  local_asn          = data.equinix_network_device.this.asn
+  local_ip_address   = "${cidrhost(var.azure_secondary_peer_subnet, 2)}/${element(split("/", var.azure_secondary_peer_subnet), 1)}"
+  local_asn          = var.customer_bgp_asn
   remote_ip_address  = cidrhost(var.azure_secondary_peer_subnet, 1)
   remote_asn         = var.azure_microsoft_bgp_asn
   authentication_key = var.bgp_auth_key != "" ? var.bgp_auth_key : null
@@ -287,16 +281,6 @@ resource "azurerm_subnet" "workload" {
 # 6. Azure — Virtual Network Gateway (ExpressRoute)
 ###############################################################################
 
-resource "azurerm_public_ip" "vng" {
-  name                = "fred-pip-vng-dublin"
-  location            = var.azure_region
-  resource_group_name = data.azurerm_resource_group.this.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-
-  tags = local.common_tags
-}
-
 resource "azurerm_virtual_network_gateway" "hub" {
   name                = "fred-vng-hub-dublin"
   location            = var.azure_region
@@ -306,9 +290,10 @@ resource "azurerm_virtual_network_gateway" "hub" {
   sku      = var.vng_sku
   vpn_type = "RouteBased"
 
+  # ExpressRoute gateways do not take a public IP (azurerm v5 rejects it —
+  # older provider/API versions required one, the current API does not).
   ip_configuration {
     name                          = "vnetGatewayConfig"
-    public_ip_address_id          = azurerm_public_ip.vng.id
     private_ip_address_allocation = "Dynamic"
     subnet_id                     = azurerm_subnet.gateway.id
   }
@@ -405,16 +390,13 @@ resource "azurerm_subnet_route_table_association" "workload" {
 # 10. Azure — Reference VM
 ###############################################################################
 
-resource "tls_private_key" "vm_ssh" {
-  count     = var.admin_ssh_public_key == "" ? 1 : 0
-  algorithm = "ED25519"
-}
+resource "azurerm_ssh_public_key" "fred" {
+  name                = "fred-ssh-key"
+  location            = var.azure_region
+  resource_group_name = data.azurerm_resource_group.this.name
+  public_key          = var.admin_ssh_public_key
 
-resource "local_sensitive_file" "vm_ssh_private_key" {
-  count           = var.admin_ssh_public_key == "" ? 1 : 0
-  content         = tls_private_key.vm_ssh[0].private_key_openssh
-  filename        = "${path.module}/generated_ssh_key.pem"
-  file_permission = "0600"
+  tags = local.common_tags
 }
 
 resource "azurerm_public_ip" "vm" {
@@ -454,7 +436,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   admin_ssh_key {
     username   = var.vm_admin_username
-    public_key = local.vm_ssh_public_key
+    public_key = azurerm_ssh_public_key.fred.public_key
   }
 
   os_disk {
@@ -484,6 +466,4 @@ locals {
     Owner       = var.owner
     Region      = "Dublin"
   }
-
-  vm_ssh_public_key = var.admin_ssh_public_key != "" ? var.admin_ssh_public_key : tls_private_key.vm_ssh[0].public_key_openssh
 }

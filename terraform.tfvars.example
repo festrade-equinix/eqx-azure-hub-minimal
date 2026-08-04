@@ -34,8 +34,8 @@ azure_er_fastpath_enabled = false
 # VM
 vm_size            = "Standard_B1s"
 vm_admin_username  = "fredadmin"
-# admin_ssh_public_key = ""   # Leave empty to auto-generate a keypair (saved as generated_ssh_key.pem)
-admin_source_cidr  = "203.0.113.10/32"   # TODO: restrict to your own public IP
+admin_ssh_public_key = "ssh-rsa AAAAB3Nza...your-key... comment"   # registered in Azure as fred-ssh-key
+admin_source_cidr    = "203.0.113.10/32"   # TODO: restrict to your own public IP
 
 # ─── Equinix ──────────────────────────────────────────────────────────────────
 # export TF_VAR_equinix_client_id="your-client-id"
@@ -55,6 +55,7 @@ azure_vlan_id               = 300
 azure_primary_peer_subnet   = "172.20.0.0/30"
 azure_secondary_peer_subnet = "172.20.0.4/30"
 azure_microsoft_bgp_asn     = 12076
+customer_bgp_asn            = 65001   # fred-cisco-PA's configured router ASN
 # bgp_auth_key               = "secret"   # Prefer TF_VAR_bgp_auth_key
 
 # ─── Notifications & Billing ──────────────────────────────────────────────────

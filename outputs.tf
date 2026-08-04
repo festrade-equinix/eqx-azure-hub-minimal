@@ -26,8 +26,8 @@ output "equinix_ne_device_id" {
   value       = data.equinix_network_device.this.id
 }
 
-output "equinix_ne_device_asn" {
-  description = "BGP ASN configured on the Network Edge device."
+output "equinix_ne_device_reported_asn" {
+  description = "ASN reported by the equinix_network_device data source (reads 0/unset for fred-cisco-PA — the actual BGP ASN used is var.customer_bgp_asn)."
   value       = data.equinix_network_device.this.asn
 }
 
@@ -90,9 +90,9 @@ output "vm_private_ip" {
   value       = azurerm_network_interface.vm.private_ip_address
 }
 
-output "vm_ssh_private_key_path" {
-  description = "Path to the generated SSH private key (only set when admin_ssh_public_key was left empty)."
-  value       = var.admin_ssh_public_key == "" ? local_sensitive_file.vm_ssh_private_key[0].filename : "using provided admin_ssh_public_key"
+output "vm_ssh_key_id" {
+  description = "Resource ID of the fred-ssh-key SSH public key registered in Azure."
+  value       = azurerm_ssh_public_key.fred.id
 }
 
 # ─── Equinix created resources ────────────────────────────────────────────────
@@ -115,14 +115,14 @@ output "bgp_summary" {
     primary = {
       local_ip   = cidrhost(var.azure_primary_peer_subnet, 2)
       remote_ip  = cidrhost(var.azure_primary_peer_subnet, 1)
-      local_asn  = data.equinix_network_device.this.asn
+      local_asn  = var.customer_bgp_asn
       remote_asn = var.azure_microsoft_bgp_asn
       vlan       = var.azure_vlan_id
     }
     secondary = {
       local_ip   = cidrhost(var.azure_secondary_peer_subnet, 2)
       remote_ip  = cidrhost(var.azure_secondary_peer_subnet, 1)
-      local_asn  = data.equinix_network_device.this.asn
+      local_asn  = var.customer_bgp_asn
       remote_asn = var.azure_microsoft_bgp_asn
       vlan       = var.azure_vlan_id
     }
