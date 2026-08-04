@@ -18,8 +18,8 @@ owner        = "fred"
 azure_region = "northeurope"   # Dublin, Ireland
 
 # Existing resources
-azure_resource_group_name = "frederic.estrade_rg"
-azure_er_circuit_name     = "fred-er-dublin"
+azure_resource_group_name = "my-resource-group"       # TODO: your resource group
+azure_er_circuit_name     = "my-expressroute-circuit"  # TODO: your ExpressRoute circuit name
 
 # New hub network
 vnet_address_space     = "192.168.11.0/24"
@@ -44,9 +44,9 @@ onprem_test_prefix   = "10.11.0.1/32"      # loopback/test IP on the NE side, ad
 
 equinix_azure_metro_code = "DB"   # Dublin
 
-# Existing Network Edge device (fred-cisco-PA, Paris — remote connection)
-equinix_ne_device_uuid   = "371987e0-43fe-4328-a251-039bdc598c0a"
-equinix_sp_azure_er_uuid = "a1390b22-bbe0-4e93-ad37-85beef9d254d"
+# Existing Network Edge device
+equinix_ne_device_uuid   = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # TODO: your NE device UUID
+equinix_sp_azure_er_uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # TODO: Azure ExpressRoute service profile UUID from the Fabric marketplace
 
 # Fabric Connections — created by Terraform (Mbps)
 ne_azure_bandwidth_mbps = 50
@@ -60,5 +60,5 @@ customer_bgp_asn            = 65001   # fred-cisco-PA's configured router ASN
 # bgp_auth_key               = "secret"   # Prefer TF_VAR_bgp_auth_key
 
 # ─── Notifications & Billing ──────────────────────────────────────────────────
-notification_emails = ["frederic.estrade@eu.equinix.com"]
+notification_emails = ["your-team@example.com"]   # TODO: your notification address(es)
 po_number            = "PO-000001"

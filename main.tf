@@ -117,8 +117,8 @@ resource "equinix_fabric_connection" "ne_to_azure_primary" {
       location {
         metro_code = var.equinix_azure_metro_code
       }
-      seller_region       = data.azurerm_express_route_circuit.this.service_provider_properties[0].peering_location
-      authentication_key  = data.azurerm_express_route_circuit.this.service_key
+      seller_region      = data.azurerm_express_route_circuit.this.service_provider_properties[0].peering_location
+      authentication_key = data.azurerm_express_route_circuit.this.service_key
     }
   }
 
@@ -171,8 +171,8 @@ resource "equinix_fabric_connection" "ne_to_azure_secondary" {
       location {
         metro_code = var.equinix_azure_metro_code
       }
-      seller_region       = data.azurerm_express_route_circuit.this.service_provider_properties[0].peering_location
-      authentication_key  = data.azurerm_express_route_circuit.this.service_key
+      seller_region      = data.azurerm_express_route_circuit.this.service_provider_properties[0].peering_location
+      authentication_key = data.azurerm_express_route_circuit.this.service_key
     }
   }
 
@@ -203,17 +203,17 @@ resource "equinix_fabric_connection" "ne_to_azure_secondary" {
 ###############################################################################
 
 resource "azurerm_express_route_circuit_peering" "private" {
-  peering_type                  = "AzurePrivatePeering"
-  express_route_circuit_name    = data.azurerm_express_route_circuit.this.name
-  resource_group_name           = data.azurerm_resource_group.this.name
+  peering_type               = "AzurePrivatePeering"
+  express_route_circuit_name = data.azurerm_express_route_circuit.this.name
+  resource_group_name        = data.azurerm_resource_group.this.name
 
-  vlan_id                       = var.azure_vlan_id
-  peer_asn                      = var.customer_bgp_asn
+  vlan_id  = var.azure_vlan_id
+  peer_asn = var.customer_bgp_asn
 
   primary_peer_address_prefix   = var.azure_primary_peer_subnet
   secondary_peer_address_prefix = var.azure_secondary_peer_subnet
 
-  shared_key  = var.bgp_auth_key != "" ? var.bgp_auth_key : null
+  shared_key   = var.bgp_auth_key != "" ? var.bgp_auth_key : null
   ipv4_enabled = true
 
   depends_on = [
@@ -310,11 +310,11 @@ resource "azurerm_virtual_network_gateway_connection" "er" {
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
-  type                          = "ExpressRoute"
-  virtual_network_gateway_id    = azurerm_virtual_network_gateway.hub.id
-  express_route_circuit_id      = data.azurerm_express_route_circuit.this.id
-  express_route_gateway_bypass  = var.azure_er_fastpath_enabled
-  authorization_key             = var.azure_er_authorization_key != "" ? var.azure_er_authorization_key : null
+  type                         = "ExpressRoute"
+  virtual_network_gateway_id   = azurerm_virtual_network_gateway.hub.id
+  express_route_circuit_id     = data.azurerm_express_route_circuit.this.id
+  express_route_gateway_bypass = var.azure_er_fastpath_enabled
+  authorization_key            = var.azure_er_authorization_key != "" ? var.azure_er_authorization_key : null
 
   routing_weight = 10
 
@@ -439,11 +439,11 @@ resource "azurerm_network_interface" "vm" {
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                = "fred-vm-dublin"
-  location            = var.azure_region
-  resource_group_name = data.azurerm_resource_group.this.name
-  size                = var.vm_size
-  admin_username      = var.vm_admin_username
+  name                  = "fred-vm-dublin"
+  location              = var.azure_region
+  resource_group_name   = data.azurerm_resource_group.this.name
+  size                  = var.vm_size
+  admin_username        = var.vm_admin_username
   network_interface_ids = [azurerm_network_interface.vm.id]
 
   disable_password_authentication = true

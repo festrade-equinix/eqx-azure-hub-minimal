@@ -104,6 +104,16 @@
 
 ## Deployment
 
+> **`terraform.tfstate` contains plaintext secrets** — the Cisco device's
+> admin password, the ExpressRoute circuit's service key, and the BGP MD5
+> shared key are all stored unencrypted in state (Terraform's `sensitive`
+> flag only redacts CLI output, not the state file itself). It's already
+> gitignored — never commit it, attach it to a ticket, or share it over
+> Slack/email. If this deployment needs to be shared/maintained by more
+> than one person, move to a remote backend with encryption at rest and
+> access control (e.g. an Azure Storage backend with RBAC, or Terraform
+> Cloud) instead of passing the local state file around.
+
 ### 0. Credentials
 
 ```bash

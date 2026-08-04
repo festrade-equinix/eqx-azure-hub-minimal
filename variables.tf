@@ -60,15 +60,13 @@ variable "azure_region" {
 # ─── Azure — Existing resources (data sources) ────────────────────────────────
 
 variable "azure_resource_group_name" {
-  description = "Existing Resource Group to deploy into."
+  description = "Existing Resource Group to deploy into. No default — set explicitly in tfvars so Terraform fails loudly rather than silently targeting someone else's resource group."
   type        = string
-  default     = "frederic.estrade_rg"
 }
 
 variable "azure_er_circuit_name" {
-  description = "Name of the existing ExpressRoute Circuit (provider = Equinix, peering location = Dublin Metro)."
+  description = "Name of the existing ExpressRoute Circuit (provider = Equinix). No default — set explicitly in tfvars."
   type        = string
-  default     = "fred-er-dublin"
 }
 
 # ─── Azure — New Hub network (created resources) ─────────────────────────────
@@ -165,15 +163,13 @@ variable "equinix_azure_metro_code" {
 # ─── Equinix — Existing Network Edge device (data source) ────────────────────
 
 variable "equinix_ne_device_uuid" {
-  description = "UUID of the existing Network Edge device (fred-cisco-PA, Paris metro). Connections to Azure in Dublin are remote/cross-metro."
+  description = "UUID of the existing Network Edge device to connect. No default — set explicitly in tfvars so Terraform fails loudly rather than silently targeting someone else's device."
   type        = string
-  default     = "371987e0-43fe-4328-a251-039bdc598c0a"
 }
 
 variable "equinix_sp_azure_er_uuid" {
-  description = "UUID of the Azure ExpressRoute service profile in the Equinix Fabric marketplace (public profile, connection redundancy required)."
+  description = "UUID of the Azure ExpressRoute service profile in the Equinix Fabric marketplace. No default — set explicitly in tfvars (look it up via the Fabric marketplace or search_service_profiles)."
   type        = string
-  default     = "a1390b22-bbe0-4e93-ad37-85beef9d254d"
 }
 
 # ─── Equinix — Fabric Connections (created resources) ────────────────────────
@@ -231,9 +227,8 @@ variable "bgp_auth_key" {
 # ─── Notifications & Billing ──────────────────────────────────────────────────
 
 variable "notification_emails" {
-  description = "Email addresses for Equinix Fabric notifications."
+  description = "Email addresses for Equinix Fabric notifications. No default — set explicitly in tfvars."
   type        = list(string)
-  default     = ["frederic.estrade@eu.equinix.com"]
 }
 
 variable "po_number" {
