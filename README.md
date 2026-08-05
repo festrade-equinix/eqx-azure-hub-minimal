@@ -19,39 +19,39 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 
 ## 1. Required configuration
 
-Every variable below has **no default** — Terraform will refuse to run
-(`No value for required variable`) until you set it, rather than silently
-reusing someone else's resources. Set these in `terraform.tfvars` (copy from
-`terraform.tfvars.example`) or as `TF_VAR_*` environment variables for the
-sensitive ones (see `.env` pattern in [Deployment](#6-deployment)).
+Set these in `terraform.tfvars` (copy from `terraform.tfvars.example`) or as
+`TF_VAR_*` environment variables (see `.env` pattern in
+[Deployment](#6-deployment)). Variables marked `— (required)` have no
+default — Terraform refuses to run (`No value for required variable`) until
+you set them, rather than silently reusing someone else's resources.
+Everything else has a default that was tuned for one specific prior
+deployment — review it before trusting it for yours.
 
-| Variable | Sensitive? | What it is | Where to get it |
+| Variable | Default | What it is | Where to get it / notes |
 |---|---|---|---|
-| `azure_subscription_id` | ✅ | Target Azure subscription | `az account show --query id -o tsv` |
-| `azure_resource_group_name` | | Existing Resource Group to deploy into | `az group list -o table` |
-| `azure_er_circuit_name` | | Existing ExpressRoute Circuit name | `az network express-route list -o table` |
-| `equinix_client_id` | ✅ | Fabric API Client ID | developer.equinix.com → your app registration |
-| `equinix_client_secret` | ✅ | Fabric API Client Secret | developer.equinix.com → your app registration |
-| `equinix_ne_device_uuid` | | Existing Network Edge device UUID | Equinix Portal → Network Edge → Devices |
-| `equinix_sp_azure_er_uuid` | | Azure ExpressRoute service profile UUID | Fabric marketplace search, or `search_service_profiles` |
-| `admin_ssh_public_key` | | Your SSH public key for the VM | `cat ~/.ssh/id_ed25519.pub` (or generate one) |
-| `admin_source_cidr` | | Your public IP, `/32`, for SSH+ICMP NSG access | `curl ifconfig.me` |
-| `notification_emails` | | Email(s) for Equinix Fabric connection notifications | Your own/team address |
-
-These have defaults, but the defaults were tuned for one specific prior
-deployment — **review and very likely override** every one of these:
-
-| Variable | Default | Why you probably need to change it |
-|---|---|---|
-| `equinix_connection_prefix` | `"yourname"` | Placeholder on purpose — set to your own short handle |
-| `customer_bgp_asn` | `65001` | This is a specific NE device's ASN, not a universal constant — must match **your** device |
-| `azure_vlan_id` | `300` | Must be free on **your** NE device's port |
-| `azure_primary_peer_subnet` / `azure_secondary_peer_subnet` | `172.20.0.0/30` / `172.20.0.4/30` | Must not collide with another BGP session on the same device |
-| `vnet_address_space`, `gateway_subnet_prefix`, `workload_subnet_prefix` | `192.168.11.0/24` and sub-ranges | Must not overlap anything you'll route/peer to |
-| `equinix_azure_metro_code` | `"DB"` (Dublin) | Change if your ExpressRoute circuit peers in a different metro |
-| `ne_azure_bandwidth_mbps` | `50` | Should match (not exceed) your ER circuit's provisioned bandwidth |
-| `project_name`, `owner` | `"fred-azure-hub-dublin"`, `"fred"` | Cosmetic (used in tags and Azure resource names) but worth personalizing |
-| `bgp_auth_key` | `""` (disabled) | Set via `TF_VAR_bgp_auth_key` if you want MD5 BGP auth |
+| `azure_subscription_id` | *(required)* | Target Azure subscription | `az account show --query id -o tsv` |
+| `azure_resource_group_name` | *(required)* | Existing Resource Group to deploy into | `az group list -o table` |
+| `azure_er_circuit_name` | *(required)* | Existing ExpressRoute Circuit name | `az network express-route list -o table` |
+| `equinix_client_id` | *(required)* | Fabric API Client ID | developer.equinix.com → your app registration |
+| `equinix_client_secret` | *(required)* | Fabric API Client Secret | developer.equinix.com → your app registration |
+| `equinix_ne_device_uuid` | *(required)* | Existing Network Edge device UUID | Equinix Portal → Network Edge → Devices |
+| `equinix_sp_azure_er_uuid` | *(required)* | Azure ExpressRoute service profile UUID | Fabric marketplace search, or `search_service_profiles` |
+| `admin_ssh_public_key` | *(required)* | Your SSH public key for the VM | `cat ~/.ssh/id_ed25519.pub` (or generate one) |
+| `admin_source_cidr` | *(required)* | Your public IP, `/32`, for SSH+ICMP NSG access | `curl ifconfig.me` |
+| `notification_emails` | *(required)* | Email(s) for Equinix Fabric connection notifications | Your own/team address |
+| `equinix_connection_prefix` | `"yourname"` | Short prefix for the two Fabric connection names | Placeholder on purpose — set to your own short handle |
+| `customer_bgp_asn` | `65001` | BGP ASN of your NE device (customer side) | Specific to one device — must match **yours**, not a universal constant |
+| `azure_vlan_id` | `300` | DOT1Q VLAN ID for the ER private peering | Must be free on **your** NE device's port |
+| `azure_primary_peer_subnet` | `172.20.0.0/30` | Primary BGP session /30 | Must not collide with another BGP session on the same device |
+| `azure_secondary_peer_subnet` | `172.20.0.4/30` | Secondary BGP session /30 | Must not collide with another BGP session on the same device |
+| `vnet_address_space` | `192.168.11.0/24` | Hub VNet address space | Must not overlap anything you'll route/peer to |
+| `gateway_subnet_prefix` | `192.168.11.0/27` | GatewaySubnet prefix | Carved from `vnet_address_space` |
+| `workload_subnet_prefix` | `192.168.11.128/25` | Workload subnet prefix | Carved from `vnet_address_space` |
+| `equinix_azure_metro_code` | `"DB"` | Equinix metro where the ER circuit is peered | Change if your circuit peers in a different metro |
+| `ne_azure_bandwidth_mbps` | `50` | Fabric connection bandwidth (Mbps) | Should match (not exceed) your ER circuit's provisioned bandwidth |
+| `project_name` | `"fred-azure-hub-dublin"` | Prefix for Azure resource names + tags | Cosmetic but worth personalizing |
+| `owner` | `"fred"` | Owner tag | Cosmetic but worth personalizing |
+| `bgp_auth_key` | `""` (disabled) | Optional MD5 key for BGP auth | Set via `TF_VAR_bgp_auth_key` if you want MD5 BGP auth |
 
 Everything else (`vng_sku`, `vm_size`, `azure_er_fastpath_enabled`,
 `azure_er_authorization_key`, `vm_admin_username`, `onprem_test_prefix`,
@@ -114,41 +114,44 @@ connects to them. Have them ready before running `terraform apply`:
 
 ## 3. Architecture
 
-```
-Equinix Fabric — Paris (PA metro)
-    │
-    ▼
-fred-cisco-PA  (Network Edge device — existing, self-managed/BYOL Cisco C8000v)
-    │   two redundant Fabric connections (EVPL_VC), remote/cross-metro to Dublin
-    │
-    ├──▶ Fabric VC PRIMARY    → Azure ExpressRoute service profile
-    │       auth_key = ER Circuit service_key
-    │       BGP 172.20.0.2/30 ↔ 172.20.0.1   ASN <device> ↔ 12076
-    │
-    └──▶ Fabric VC SECONDARY  → Azure ExpressRoute service profile
-            redundancy group = PRIMARY's group
-            BGP 172.20.0.6/30 ↔ 172.20.0.5   ASN <device> ↔ 12076
+```mermaid
+flowchart TB
+    Device["fred-cisco-PA\nNetwork Edge device\nself-managed/BYOL Cisco C8000v"]
 
-Azure — North Europe (Dublin)
-    │
-    ▼
-fred-er-dublin  (ExpressRoute Circuit — existing, provider Equinix)
-    │   AzurePrivatePeering — created
-    │     primary   172.20.0.0/30
-    │     secondary 172.20.0.4/30
-    ▼
-Virtual Network Gateway  (created — SKU Standard, type ExpressRoute)
-    │   VNet Gateway ↔ ER Circuit connection — created
-    ▼
-fred-vnet-hub-dublin  (VNet — created, 192.168.11.0/24)
-    ├── GatewaySubnet              192.168.11.0/27
-    └── fred-snet-workload-dublin  192.168.11.128/25
-            ├─ NSG fred-nsg-workload-dublin        (created — allow SSH + ICMP)
-            ├─ Route table fred-rt-workload-dublin  (created — BGP propagation on)
-            └─ fred-vm-dublin                       (created — Linux VM)
+    subgraph EQX["Equinix Fabric — Paris (PA metro)"]
+        direction LR
+        Primary["Fabric VC PRIMARY\nauth_key = ER service_key\nBGP 172.20.0.2/30 ↔ .1 · ASN device ↔ 12076"]
+        Secondary["Fabric VC SECONDARY\nredundancy group = PRIMARY's\nBGP 172.20.0.6/30 ↔ .5 · ASN device ↔ 12076"]
+    end
+
+    ERCircuit["fred-er-dublin\nExpressRoute Circuit\nprovider Equinix · Dublin Metro"]
+    Peering["AzurePrivatePeering\nprimary 172.20.0.0/30 · secondary 172.20.0.4/30"]
+    VNGConn["VNet Gateway ↔ ER connection"]
+    VNG["Virtual Network Gateway\nSKU Standard · type ExpressRoute"]
+
+    subgraph VNet["fred-vnet-hub-dublin — 192.168.11.0/24"]
+        GatewaySubnet["GatewaySubnet\n192.168.11.0/27"]
+
+        subgraph Workload["fred-snet-workload-dublin — 192.168.11.128/25"]
+            direction LR
+            NSG["NSG\nallow SSH + ICMP"]
+            RouteTable["Route table\nBGP propagation on"]
+            VM["fred-vm-dublin\nLinux VM"]
+        end
+    end
+
+    Device --> Primary --> ERCircuit
+    Device --> Secondary --> ERCircuit
+    ERCircuit --> Peering --> VNGConn --> VNG --> GatewaySubnet
+
+    classDef existing fill:#fff3cd,stroke:#e0c36a,color:#5c4a06
+    classDef created fill:#dcf5e3,stroke:#3aa55c,color:#14401f
+
+    class Device,ERCircuit existing
+    class Primary,Secondary,Peering,VNGConn,VNG,GatewaySubnet,NSG,RouteTable,VM,VNet,Workload created
 ```
 
-`(existing)` = data source, never modified by Terraform · `(created)` = resource created by Terraform
+`Amber` = existing, a data source never modified by Terraform · `Green` = created by Terraform
 
 ## 4. Resource inventory
 
