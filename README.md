@@ -6,7 +6,7 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 
 ## Summary
 
-- [1. Required configuration](#1-required-configuration) — every variable you must fill in with your own values
+- [1. Required information](#1-required-information) — every variable you must fill in with your own values
 - [2. Architecture](#2-architecture) — diagram of what's existing vs. created
 - [3. Prerequisites](#3-prerequisites) — tools, access, and existing infra you need before running this
 - [4. Resource inventory](#4-resource-inventory) — every resource this Terraform touches
@@ -17,12 +17,13 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 - [9. Key design notes](#9-key-design-notes) — non-obvious decisions and constraints
 - [10. Teardown](#10-teardown)
 
-## 1. Required configuration
+## 1. Required information
 
-Set these in `terraform.tfvars` (copy from `terraform.tfvars.example`) or, for
-the ones marked *(.env)*, as `TF_VAR_*` environment variables in `.env`
-(copy from `.env.example` — see [Deployment](#6-deployment)). Examples below
-are pulled straight from those two example files — swap in your own values.
+Most of these go in `terraform.tfvars` (copy it from `terraform.tfvars.example`).
+The ones marked *(.env)* go in `.env` instead (copy it from `.env.example`) —
+see [Deployment](#6-deployment) for how the two files are used together.
+Examples below are taken directly from those two files; replace them with
+your own values.
 
 | Variable | What it is | Example |
 |---|---|---|
@@ -121,39 +122,8 @@ flowchart TB
   project containing your Network Edge device, scoped to create Fabric
   Connections and (if applicable) configure NE BGP.
 - **Equinix Portal login**: to reach the Network Edge device's console for
-  the manual BGP step, if your device is self-managed/BYOL (see
+  the manual BGP step, use SSH if your device is self-managed/BYOL (see
   [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed)).
-
-### Existing infrastructure this Terraform expects to already exist
-
-This repo does **not** create these — it looks them up as data sources and
-connects to them. Have them ready before running `terraform apply`:
-
-| Existing resource | Where to get its identifier |
-|---|---|
-| Azure Resource Group | Azure Portal, or `az group list -o table` |
-| Azure ExpressRoute Circuit (provider = Equinix, already has a service key) | `az network express-route list -o table` |
-| Equinix Network Edge device | Equinix Portal → Network Edge → Devices → device UUID |
-| Azure ExpressRoute service profile in the Fabric marketplace | Equinix Portal → Fabric marketplace, search "Azure ExpressRoute", or the Fabric API's `search_service_profiles` |
-
-### Planning inputs to gather first
-
-- A short, unique **name/handle prefix** for the two Fabric connections this
-  creates (`equinix_connection_prefix`, ≤ 14 chars) — avoids collisions if
-  multiple people deploy from this template into the same Equinix account.
-- Your **NE device's configured BGP ASN** (`customer_bgp_asn`) — the
-  `equinix_network_device` data source does not reliably report this; you
-  need to know it independently (check the device's running config or your
-  own records).
-- A **VLAN ID** (`azure_vlan_id`) not already in use on your NE device's
-  port, and two **/30 subnets** (`azure_primary_peer_subnet`,
-  `azure_secondary_peer_subnet`) not already used for another BGP session on
-  the same device.
-- A **VNet address space** (`vnet_address_space` + the two subnet prefixes)
-  that doesn't overlap any network you'll eventually peer or route to.
-- Your own **SSH public key** (for `TF_VAR_admin_ssh_public_key` in `.env`)
-  and **public IP** (for `admin_source_cidr` in `terraform.tfvars`) —
-  `curl ifconfig.me` gets the latter.
 
 ## 4. Resource inventory
 
