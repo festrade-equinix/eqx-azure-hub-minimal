@@ -80,6 +80,12 @@ variable "azure_er_circuit_name" {
   type        = string
 }
 
+variable "azure_er_service_key" {
+  description = "Service key of the existing ExpressRoute Circuit (Azure Portal -> circuit -> Overview -> Service key), used as the Equinix Fabric authentication_key. Set via TF_VAR_azure_er_service_key in .env, not tfvars."
+  type        = string
+  sensitive   = true
+}
+
 # ─── Azure — New Hub network (created resources) ─────────────────────────────
 
 variable "vnet_address_space" {

@@ -63,8 +63,8 @@ data "azurerm_resource_group" "this" {
 }
 
 # Existing ExpressRoute Circuit (provider = Equinix, peering location = Dublin Metro)
-# service_key is retrieved automatically and used as the Equinix Fabric
-# authentication_key for both the primary and secondary connections.
+# Its service key is NOT read from this data source — provided explicitly
+# via var.azure_er_service_key (TF_VAR_azure_er_service_key in .env) instead.
 data "azurerm_express_route_circuit" "this" {
   name                = var.azure_er_circuit_name
   resource_group_name = data.azurerm_resource_group.this.name
@@ -119,7 +119,7 @@ resource "equinix_fabric_connection" "ne_to_azure_primary" {
         metro_code = var.equinix_azure_metro_code
       }
       seller_region      = data.azurerm_express_route_circuit.this.service_provider_properties[0].peering_location
-      authentication_key = data.azurerm_express_route_circuit.this.service_key
+      authentication_key = var.azure_er_service_key
     }
   }
 
@@ -173,7 +173,7 @@ resource "equinix_fabric_connection" "ne_to_azure_secondary" {
         metro_code = var.equinix_azure_metro_code
       }
       seller_region      = data.azurerm_express_route_circuit.this.service_provider_properties[0].peering_location
-      authentication_key = data.azurerm_express_route_circuit.this.service_key
+      authentication_key = var.azure_er_service_key
     }
   }
 

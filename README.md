@@ -7,9 +7,9 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 This project is built in the Dublin region as an example — the same
 pattern applies to any Azure region and Equinix metro.
 
-It requires an existing Network Edge device and an Azure ExpressRoute
-service key (provided via the Azure Portal when you create the circuit) —
-see [1. Required information](#1-required-information).
+It requires an existing Network Edge device and an existing Azure
+ExpressRoute Circuit — its service key (from the Azure Portal) is provided
+explicitly via `.env`. See [1. Required information](#1-required-information).
 
 ## Summary
 
@@ -36,6 +36,7 @@ your own values.
 | `equinix_client_id` | `.env` | Fabric API Client ID | `your-client-id` |
 | `equinix_client_secret` | `.env` | Fabric API Client Secret | `your-client-secret` |
 | `azure_subscription_id` | `.env` | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `azure_er_service_key` | `.env` | Existing ExpressRoute Circuit's service key | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `admin_ssh_public_key` | `.env` | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
 | `bgp_auth_key` | `.env` | Optional BGP MD5 key | `aB3xTq9LmZk2Wp7VcRn4` |
 | `equinix_ne_device_uuid` | `terraform.tfvars` | Existing NE device UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
@@ -147,7 +148,8 @@ cd eqx-azure-hub-minimal
 ```bash
 cp .env.example .env
 # Fill in TF_VAR_equinix_client_id/secret, TF_VAR_azure_subscription_id,
-# TF_VAR_admin_ssh_public_key, and optionally TF_VAR_bgp_auth_key.
+# TF_VAR_azure_er_service_key, TF_VAR_admin_ssh_public_key, and
+# optionally TF_VAR_bgp_auth_key.
 
 source .env
 az login      # azurerm provider picks up the CLI session automatically
