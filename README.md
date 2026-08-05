@@ -7,6 +7,10 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 This project is built in the Dublin region as an example — the same
 pattern applies to any Azure region and Equinix metro.
 
+It requires an existing Network Edge device and an Azure ExpressRoute
+service key (provided via the Azure Portal when you create the circuit) —
+see [1. Required information](#1-required-information).
+
 ## Summary
 
 - [1. Required information](#1-required-information) — every variable you must fill in with your own values
