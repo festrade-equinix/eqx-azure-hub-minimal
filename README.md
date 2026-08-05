@@ -164,11 +164,6 @@ terraform apply tfplan
 
 ### 4 (alternative) — Step-by-step with `-target`
 
-Mirrors the 9 automated steps — NE BGP routing is a manual step outside
-Terraform (see [Manual BGP config](#manual-bgp-config-ne-device)),
-since NE devices are self-managed/BYOL by default and Equinix's managed
-config-push API can't reach them:
-
 ```bash
 source .env
 terraform init
