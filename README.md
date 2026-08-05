@@ -110,7 +110,7 @@ flowchart TB
 
 ## 3. Prerequisites
 
-### Tools
+### Software
 
 | Tool | Min version | Used for |
 |---|---|---|
@@ -118,7 +118,7 @@ flowchart TB
 | Azure CLI (`az`) | >= 2.x | `az login` — the `azurerm` provider picks up this session automatically |
 | `ssh` / an Equinix Portal login | — | Manual BGP config step (see below) — Equinix's managed config-push API does not reach self-managed NE devices |
 
-### Access you need before you start
+### Secured design
 
 - **Azure**: a subscription with `Contributor` (or equivalent) on the target
   Resource Group — this Terraform creates a VNet, subnets, a Virtual Network
@@ -131,6 +131,22 @@ flowchart TB
 - **Equinix Portal login**: to reach the Network Edge device's console for
   the manual BGP step, use SSH if your device is self-managed/BYOL (see
   [Manual BGP config](#manual-bgp-config-ne-device)).
+- **Secrets are crown jewels**: every credential and secret this project
+  uses (API keys, subscription ID, ER service key, SSH key, BGP MD5 key)
+  lives in `terraform.tfvars` and `.env` — both gitignored, never committed.
+  Treat these two files with the same care as production credentials, not
+  as regular project config.
+
+### Resilient design
+
+- **Equinix side**: the two Fabric Connections (VC) are deployed as a
+  primary/secondary redundancy pair, giving path-level redundancy from the
+  Network Edge device to Azure — if one VC fails, BGP fails over to the
+  other.
+- **Azure side**: the ExpressRoute circuit itself is metro-resilient — the
+  primary and secondary peering IPs land on physically diverse Microsoft
+  Enterprise Edge routers within the same metro, so no single device
+  failure on Microsoft's side breaks connectivity.
 
 ## 4. Quick Start
 
