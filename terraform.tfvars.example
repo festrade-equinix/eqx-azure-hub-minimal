@@ -57,7 +57,6 @@ azure_primary_peer_subnet   = "172.20.0.0/30"
 azure_secondary_peer_subnet = "172.20.0.4/30"
 azure_microsoft_bgp_asn     = 12076
 customer_bgp_asn            = 65001   # fred-cisco-PA's configured router ASN
-# bgp_auth_key               = "secret"   # Prefer TF_VAR_bgp_auth_key
 
 # ─── Notifications & Billing ──────────────────────────────────────────────────
 notification_emails = ["your-team@example.com"]   # TODO: your notification address(es)

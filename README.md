@@ -48,7 +48,7 @@ are pulled straight from those two example files — swap in your own values.
 | `ne_azure_bandwidth_mbps` | Fabric connection bandwidth (Mbps) | `50` |
 | `project_name` | Resource name/tag prefix | `fred-azure-hub-dublin` |
 | `owner` | Owner tag | `fred` |
-| `bgp_auth_key` | Optional BGP MD5 key | `secret` |
+| `bgp_auth_key` *(.env)* | Optional BGP MD5 key | `aB3xTq9LmZk2Wp7VcRn4` |
 
 Everything else (`vng_sku`, `vm_size`, `azure_er_fastpath_enabled`,
 `azure_er_authorization_key`, `vm_admin_username`, `onprem_test_prefix`,
