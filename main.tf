@@ -10,7 +10,8 @@
 # │  CREATED by this Terraform                                               │
 # │  EQX   : Fabric Connection NE → Azure ER, PRIMARY   (EVPL_VC / VD a-side)│
 # │          Fabric Connection NE → Azure ER, SECONDARY (redundancy group)   │
-# │          NE BGP peering, primary + secondary sessions                    │
+# │          NE BGP peering is NOT managed here — see README section 7,     │
+# │          Manual BGP config (NE devices are self-managed/BYOL by default)│
 # │  Azure : ExpressRoute private peering (primary + secondary /30)          │
 # │          VNet + GatewaySubnet + workload subnet                          │
 # │          Virtual Network Gateway (ExpressRoute)                          │
@@ -223,34 +224,7 @@ resource "azurerm_express_route_circuit_peering" "private" {
 }
 
 ###############################################################################
-# 4. Equinix Network Edge BGP — fred-cisco-PA → Azure ExpressRoute
-#    One session per Fabric connection (primary + secondary).
-###############################################################################
-
-resource "equinix_network_bgp" "to_azure_primary" {
-  connection_id      = equinix_fabric_connection.ne_to_azure_primary.id
-  local_ip_address   = "${cidrhost(var.azure_primary_peer_subnet, 1)}/${element(split("/", var.azure_primary_peer_subnet), 1)}"
-  local_asn          = var.customer_bgp_asn
-  remote_ip_address  = cidrhost(var.azure_primary_peer_subnet, 2)
-  remote_asn         = var.azure_microsoft_bgp_asn
-  authentication_key = var.bgp_auth_key != "" ? var.bgp_auth_key : null
-
-  depends_on = [azurerm_express_route_circuit_peering.private]
-}
-
-resource "equinix_network_bgp" "to_azure_secondary" {
-  connection_id      = equinix_fabric_connection.ne_to_azure_secondary.id
-  local_ip_address   = "${cidrhost(var.azure_secondary_peer_subnet, 1)}/${element(split("/", var.azure_secondary_peer_subnet), 1)}"
-  local_asn          = var.customer_bgp_asn
-  remote_ip_address  = cidrhost(var.azure_secondary_peer_subnet, 2)
-  remote_asn         = var.azure_microsoft_bgp_asn
-  authentication_key = var.bgp_auth_key != "" ? var.bgp_auth_key : null
-
-  depends_on = [azurerm_express_route_circuit_peering.private]
-}
-
-###############################################################################
-# 5. Azure — Hub VNet + subnets
+# 4. Azure — Hub VNet + subnets
 ###############################################################################
 
 resource "azurerm_virtual_network" "hub" {
@@ -278,7 +252,7 @@ resource "azurerm_subnet" "workload" {
 }
 
 ###############################################################################
-# 6. Azure — Virtual Network Gateway (ExpressRoute)
+# 5. Azure — Virtual Network Gateway (ExpressRoute)
 ###############################################################################
 
 resource "azurerm_virtual_network_gateway" "hub" {
@@ -302,7 +276,7 @@ resource "azurerm_virtual_network_gateway" "hub" {
 }
 
 ###############################################################################
-# 7. Azure — VNet Gateway ↔ ExpressRoute Circuit connection
+# 6. Azure — VNet Gateway ↔ ExpressRoute Circuit connection
 ###############################################################################
 
 resource "azurerm_virtual_network_gateway_connection" "er" {
@@ -324,7 +298,7 @@ resource "azurerm_virtual_network_gateway_connection" "er" {
 }
 
 ###############################################################################
-# 8. Azure — NSG (allow SSH + ICMP) on the workload subnet
+# 7. Azure — NSG (allow SSH + ICMP) on the workload subnet
 ###############################################################################
 
 resource "azurerm_network_security_group" "workload" {
@@ -383,7 +357,7 @@ resource "azurerm_subnet_network_security_group_association" "workload" {
 }
 
 ###############################################################################
-# 9. Azure — Route table (BGP propagation enabled) on the workload subnet
+# 8. Azure — Route table (BGP propagation enabled) on the workload subnet
 ###############################################################################
 
 resource "azurerm_route_table" "workload" {
@@ -401,7 +375,7 @@ resource "azurerm_subnet_route_table_association" "workload" {
 }
 
 ###############################################################################
-# 10. Azure — Reference VM
+# 9. Azure — Reference VM
 ###############################################################################
 
 resource "azurerm_ssh_public_key" "fred" {

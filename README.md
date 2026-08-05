@@ -165,15 +165,15 @@ connects to them. Have them ready before running `terraform apply`:
 | | Azure ER service profile | Equinix | `data` — by UUID |
 | 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
 | 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
-| 3 | **NE BGP → Azure ER, primary session** | **Equinix** | **resource — equinix_network_bgp** |
-| 4 | **NE BGP → Azure ER, secondary session** | **Equinix** | **resource — equinix_network_bgp** |
-| 5 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
-| 6 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
-| 7 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
-| 8 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
-| 9 | **NSG (allow SSH + ICMP)** | **Azure** | **resource — associated to workload subnet** |
-| 10 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
-| 11 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
+| 3 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
+| 4 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
+| 5 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
+| 6 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
+| 7 | **NSG (allow SSH + ICMP)** | **Azure** | **resource — associated to workload subnet** |
+| 8 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
+| 9 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
+
+NE BGP configuration is **not** a Terraform resource — see [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed).
 
 ## 5. Why this device + circuit
 
@@ -233,7 +233,10 @@ terraform apply tfplan
 
 ### 2 (alternative) — Step-by-step with `-target`
 
-Mirrors the 10 manual steps this repo automates:
+Mirrors the 9 automated steps — NE BGP routing is a manual step outside
+Terraform (see [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed)),
+since NE devices are self-managed/BYOL by default and Equinix's managed
+config-push API can't reach them:
 
 ```bash
 source .env
@@ -247,40 +250,31 @@ terraform apply -target=equinix_fabric_connection.ne_to_azure_secondary
 # Step 2 — Azure: ER private peering (needs connections PROVISIONED first)
 terraform apply -target=azurerm_express_route_circuit_peering.private
 
-# Step 3 — Equinix: NE BGP routing (primary + secondary)
-# NOTE: fred-cisco-PA is a self-managed/BYOL device (confirmed via
-# equinix_network_device.self_managed = true). The Equinix-managed config-push
-# API that equinix_network_bgp relies on only works for Equinix-managed
-# devices — for self-managed ones it 500s ("failed to fetch BGP configuration
-# for connection ..."). These two applies WILL fail; skip them and configure
-# BGP manually instead (see "Manual BGP config" below).
-terraform apply -target=equinix_network_bgp.to_azure_primary
-terraform apply -target=equinix_network_bgp.to_azure_secondary
-
-# Step 4 — Azure: VNet + subnets + GatewaySubnet
+# Step 3 — Azure: VNet + subnets + GatewaySubnet
 terraform apply -target=azurerm_subnet.gateway -target=azurerm_subnet.workload
 
-# Step 5 — Azure: Virtual Network Gateway (30-45 minutes)
+# Step 4 — Azure: Virtual Network Gateway (30-45 minutes)
 terraform apply -target=azurerm_virtual_network_gateway.hub
 
-# Step 6 — Azure: VNet Gateway ↔ ER connection
+# Step 5 — Azure: VNet Gateway ↔ ER connection
 terraform apply -target=azurerm_virtual_network_gateway_connection.er
 
-# Step 7 — Azure: VM, NSG, route table + subnet association
+# Step 6 — Azure: VM, NSG, route table + subnet association
 terraform apply
 
 # Final check — confirm no remaining drift
 terraform plan
 ```
 
+Then configure NE BGP manually — see
+[7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed).
+
 ### 3. Post-deployment checks
 
 ```bash
 terraform output fabric_conn_ne_to_azure_primary_status
 terraform output fabric_conn_ne_to_azure_secondary_status
-terraform output equinix_ne_bgp_to_azure_primary_state
-terraform output equinix_ne_bgp_to_azure_secondary_state
-terraform output bgp_summary
+terraform output bgp_summary   # reference values for the manual BGP config below
 
 az network express-route peering show \
   --circuit-name fred-er-dublin \
@@ -297,10 +291,15 @@ ssh fredadmin@$(terraform output -raw vm_public_ip)
 
 ## 7. Manual BGP config (fred-cisco-PA is self-managed)
 
-`equinix_network_bgp` cannot configure this device — Equinix's managed
-config-push API is only available for Equinix-managed devices, and
-`equinix_network_device.self_managed` reads `true` for fred-cisco-PA. Each
-Fabric connection binds to its own dedicated interface (not a VLAN
+This repo does **not** manage NE BGP config via Terraform — deliberately.
+Equinix's managed config-push API (what the `equinix_network_bgp` resource
+relies on) only reaches Equinix-managed devices. Real-world NE devices are
+self-managed/BYOL far more often than not (`equinix_network_device.
+self_managed` reads `true` for fred-cisco-PA), so rather than ship a
+resource that fails for most deployments, BGP is configured manually here
+— treat this as the standard step, not a fallback.
+
+Each Fabric connection binds to its own dedicated interface (not a VLAN
 sub-interface); confirm via `terraform state show
 data.equinix_network_device.this` (`interface[].assigned_type`) before
 applying, since interface numbers can shift if connections are recreated.
@@ -408,8 +407,9 @@ custom rule added later at a lower priority number would shadow it).
   reach the VM via the VNet Gateway.
 - **SSH/ICMP source** — `admin_source_cidr` scopes the NSG rules; defaults
   to the deploying operator's detected public IP. Widen only if needed.
-- **NE BGP (equinix_network_bgp)** — works natively on the Cisco NE device
-  via the Equinix Network Edge API; no SSH/Ansible workaround required.
+- **NE BGP is deliberately not a Terraform resource** — Equinix's managed
+  config-push API only reaches Equinix-managed devices, and self-managed/BYOL
+  is the norm for real NE devices. Configured manually — see section 7.
 
 ## 10. Teardown
 
