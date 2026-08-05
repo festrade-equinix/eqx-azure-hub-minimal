@@ -114,7 +114,7 @@ flowchart TB
 
 | Tool | Min version | Used for |
 |---|---|---|
-| Terraform | >= 1.5.0 | Everything in this repo |
+| Terraform | >= 1.5.0 | Infrastructure-as-code deployment |
 | Azure CLI (`az`) | >= 2.x | `az login` — the `azurerm` provider picks up this session automatically |
 | `ssh` / an Equinix Portal login | — | Manual BGP config step (see below) — Equinix's managed config-push API does not reach self-managed NE devices |
 
