@@ -91,12 +91,14 @@ flowchart TB
 
     classDef equinix fill:#ffe8cc,stroke:#e8871e,color:#5c3a0a
     classDef azure fill:#dbe9ff,stroke:#5b8def,color:#0d2b5e
+    classDef expressroute fill:#ffd6d6,stroke:#e05a5a,color:#7a1f1f
 
     class EQX,Device,Primary,Secondary equinix
-    class ERC,EPPrimary,EPSecondary,AZR,VNG,VNet,Workload,VM azure
+    class AZR,VNG,VNet,Workload,VM azure
+    class ERC,EPPrimary,EPSecondary expressroute
 ```
 
-`Orange` = Equinix Fabric · `Blue` = Azure (Microsoft)
+`Orange` = Equinix Fabric · `Blue` = Azure (Microsoft) · `Red` = Azure ExpressRoute
 
 ## 3. Prerequisites
 
