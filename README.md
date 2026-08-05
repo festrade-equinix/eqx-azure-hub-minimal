@@ -1,11 +1,11 @@
 # Azure Hub (Minimal setup) - connected to existing Equinix Network Edge
 
-This project is built in the Dublin region as an example — the same
-pattern applies to any Azure region and Equinix metro.
-
 Minimal reference architecture: an Azure hub VNet connected to an existing
 Equinix Network Edge device over a redundant ExpressRoute Fabric connection,
 with a VM reachable from on-prem over BGP once the private peering is up.
+
+This project is built in the Dublin region as an example — the same
+pattern applies to any Azure region and Equinix metro.
 
 ## Summary
 
