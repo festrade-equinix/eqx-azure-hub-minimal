@@ -126,7 +126,7 @@ flowchart TB
 
 ## 4. Quick Start
 
-### 0. Get the code
+### 1. Get the code
 
 Clone this repository, or copy its files into your own working directory:
 
@@ -135,7 +135,7 @@ git clone https://github.com/festrade-equinix/eqx-azure-hub-minimal.git
 cd eqx-azure-hub-minimal
 ```
 
-### 1. Credentials
+### 2. Credentials
 
 ```bash
 cp .env.example .env
@@ -146,14 +146,14 @@ source .env
 az login      # azurerm provider picks up the CLI session automatically
 ```
 
-### 2. Configure variables
+### 3. Configure variables
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 # Review admin_source_cidr — restrict SSH/ICMP to your own public IP.
 ```
 
-### 3. Init, plan, apply
+### 4. Init, plan, apply
 
 ```bash
 terraform init
@@ -162,7 +162,7 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-### 3 (alternative) — Step-by-step with `-target`
+### 4 (alternative) — Step-by-step with `-target`
 
 Mirrors the 9 automated steps — NE BGP routing is a manual step outside
 Terraform (see [Manual BGP config](#manual-bgp-config-ne-device)),
@@ -200,7 +200,7 @@ terraform plan
 Then configure NE BGP manually — see
 [Manual BGP config](#manual-bgp-config-ne-device).
 
-### 4. Post-deployment checks
+### 5. Post-deployment checks
 
 ```bash
 terraform output fabric_conn_ne_to_azure_primary_status
