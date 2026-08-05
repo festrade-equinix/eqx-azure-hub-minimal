@@ -120,22 +120,21 @@ flowchart TB
 
 ### Secured design
 
-- **Azure**: your own Azure user account (the default — authenticated via
-  `az login`), or a Service Principal's Client ID/Secret (an Entra ID App
-  Registration) if you switch to non-interactive auth — either way, it
-  needs the `Contributor` role (or equivalent) on the target Resource
-  Group. `Contributor` is a role, not a credential — you still authenticate
-  as a user or Service Principal, and that identity is what gets the role
-  assigned. This Terraform creates a VNet, subnets, a Virtual Network
-  Gateway, a VM, NSG, route table, and an ExpressRoute private peering, so
-  `Network Contributor` alone is not enough (it also creates a VM).
-- **Equinix Fabric**: an API Client ID/Secret from
+- **Azure**: you need an identity with the `Contributor` role (or
+  equivalent) on the target Resource Group — either your own Azure user
+  account (the default, authenticated via `az login`), or a Service
+  Principal's Client ID/Secret (an Entra ID App Registration) if you
+  switch to non-interactive auth. This Terraform creates a VNet, subnets,
+  a Virtual Network Gateway, a VM, NSG, route table, and an ExpressRoute
+  private peering, so `Network Contributor` alone is not enough (it also
+  creates a VM).
+- **Equinix Fabric**: you need an API Client ID/Secret from
   [developer.equinix.com](https://developer.equinix.com) with access to the
   project containing your Network Edge device, scoped to create Fabric
   Connections and (if applicable) configure NE BGP.
-- **Equinix Portal login**: to reach the Network Edge device's console for
-  the manual BGP step, use SSH if your device is self-managed/BYOL (see
-  [Manual BGP config](#manual-bgp-config-ne-device)).
+- **Equinix Portal login**: you need this (or SSH, if your device is
+  self-managed/BYOL) to reach the Network Edge device's console for the
+  manual BGP step — see [Manual BGP config](#manual-bgp-config-ne-device).
 - **Secrets are crown jewels**: every credential and secret this project
   uses (API keys, subscription ID, ER service key, SSH key, BGP MD5 key)
   lives in `terraform.tfvars` and `.env` — both gitignored, never committed.
