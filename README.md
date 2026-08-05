@@ -26,29 +26,29 @@ your own values.
 
 | Variable | File | What it is | Example |
 |---|---|---|---|
-| `azure_subscription_id` | `.env` | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `azure_resource_group_name` | `terraform.tfvars` | Existing Resource Group | `my-resource-group` |
-| `azure_er_circuit_name` | `terraform.tfvars` | Existing ExpressRoute Circuit | `my-expressroute-circuit` |
 | `equinix_client_id` | `.env` | Fabric API Client ID | `your-client-id` |
 | `equinix_client_secret` | `.env` | Fabric API Client Secret | `your-client-secret` |
+| `azure_subscription_id` | `.env` | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `admin_ssh_public_key` | `.env` | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
+| `bgp_auth_key` | `.env` | Optional BGP MD5 key | `aB3xTq9LmZk2Wp7VcRn4` |
 | `equinix_ne_device_uuid` | `terraform.tfvars` | Existing NE device UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `equinix_sp_azure_er_uuid` | `terraform.tfvars` | Azure ER service profile UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `admin_ssh_public_key` | `.env` | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
-| `admin_source_cidr` | `terraform.tfvars` | Your public IP for SSH/ICMP | `203.0.113.10/32` |
-| `notification_emails` | `terraform.tfvars` | Fabric notification email(s) | `["your-team@example.com"]` |
 | `equinix_connection_prefix` | `terraform.tfvars` | Fabric connection name prefix | `yourname` |
+| `equinix_azure_metro_code` | `terraform.tfvars` | Equinix metro of the ER circuit | `DB` |
 | `customer_bgp_asn` | `terraform.tfvars` | Your NE device's BGP ASN | `65001` |
+| `ne_azure_bandwidth_mbps` | `terraform.tfvars` | Fabric connection bandwidth (Mbps) | `50` |
+| `notification_emails` | `terraform.tfvars` | Fabric notification email(s) | `["your-team@example.com"]` |
+| `azure_resource_group_name` | `terraform.tfvars` | Existing Resource Group | `my-resource-group` |
+| `azure_er_circuit_name` | `terraform.tfvars` | Existing ExpressRoute Circuit | `my-expressroute-circuit` |
 | `azure_vlan_id` | `terraform.tfvars` | VLAN ID for ER private peering | `300` |
 | `azure_primary_peer_subnet` | `terraform.tfvars` | Primary BGP session /30 | `172.20.0.0/30` |
 | `azure_secondary_peer_subnet` | `terraform.tfvars` | Secondary BGP session /30 | `172.20.0.4/30` |
 | `vnet_address_space` | `terraform.tfvars` | Hub VNet address space | `192.168.11.0/24` |
 | `gateway_subnet_prefix` | `terraform.tfvars` | GatewaySubnet prefix | `192.168.11.0/27` |
 | `workload_subnet_prefix` | `terraform.tfvars` | Workload subnet prefix | `192.168.11.128/25` |
-| `equinix_azure_metro_code` | `terraform.tfvars` | Equinix metro of the ER circuit | `DB` |
-| `ne_azure_bandwidth_mbps` | `terraform.tfvars` | Fabric connection bandwidth (Mbps) | `50` |
+| `admin_source_cidr` | `terraform.tfvars` | Your public IP for SSH/ICMP | `203.0.113.10/32` |
 | `project_name` | `terraform.tfvars` | Resource name/tag prefix | `fred-azure-hub-dublin` |
 | `owner` | `terraform.tfvars` | Owner tag | `fred` |
-| `bgp_auth_key` | `.env` | Optional BGP MD5 key | `aB3xTq9LmZk2Wp7VcRn4` |
 
 Everything else (`vng_sku`, `vm_size`, `azure_er_fastpath_enabled`,
 `azure_er_authorization_key`, `vm_admin_username`, `onprem_test_prefix`,
