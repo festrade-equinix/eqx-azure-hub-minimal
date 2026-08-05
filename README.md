@@ -19,21 +19,21 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 
 ## 1. Required configuration
 
-Set these in `terraform.tfvars` (copy from `terraform.tfvars.example`) or as
-`TF_VAR_*` environment variables (see `.env` pattern in
-[Deployment](#6-deployment)). Examples below are pulled straight from
-`terraform.tfvars.example` — swap in your own values.
+Set these in `terraform.tfvars` (copy from `terraform.tfvars.example`) or, for
+the ones marked *(.env)*, as `TF_VAR_*` environment variables in `.env`
+(copy from `.env.example` — see [Deployment](#6-deployment)). Examples below
+are pulled straight from those two example files — swap in your own values.
 
 | Variable | What it is | Example |
 |---|---|---|
-| `azure_subscription_id` | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `azure_subscription_id` *(.env)* | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `azure_resource_group_name` | Existing Resource Group | `my-resource-group` |
 | `azure_er_circuit_name` | Existing ExpressRoute Circuit | `my-expressroute-circuit` |
-| `equinix_client_id` | Fabric API Client ID | `your-client-id` |
-| `equinix_client_secret` | Fabric API Client Secret | `your-client-secret` |
+| `equinix_client_id` *(.env)* | Fabric API Client ID | `your-client-id` |
+| `equinix_client_secret` *(.env)* | Fabric API Client Secret | `your-client-secret` |
 | `equinix_ne_device_uuid` | Existing NE device UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `equinix_sp_azure_er_uuid` | Azure ER service profile UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `admin_ssh_public_key` | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
+| `admin_ssh_public_key` *(.env)* | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
 | `admin_source_cidr` | Your public IP for SSH/ICMP | `203.0.113.10/32` |
 | `notification_emails` | Fabric notification email(s) | `["your-team@example.com"]` |
 | `equinix_connection_prefix` | Fabric connection name prefix | `yourname` |
@@ -152,8 +152,9 @@ connects to them. Have them ready before running `terraform apply`:
   the same device.
 - A **VNet address space** (`vnet_address_space` + the two subnet prefixes)
   that doesn't overlap any network you'll eventually peer or route to.
-- Your own **SSH public key** and **public IP** (for `admin_ssh_public_key`
-  and `admin_source_cidr`) — `curl ifconfig.me` gets the latter.
+- Your own **SSH public key** (for `TF_VAR_admin_ssh_public_key` in `.env`)
+  and **public IP** (for `admin_source_cidr` in `terraform.tfvars`) —
+  `curl ifconfig.me` gets the latter.
 
 ## 4. Resource inventory
 
@@ -207,7 +208,11 @@ connects to them. Have them ready before running `terraform apply`:
 ### 0. Credentials
 
 ```bash
-source .env   # TF_VAR_equinix_client_id/secret, TF_VAR_bgp_auth_key, TF_VAR_azure_subscription_id
+cp .env.example .env
+# Fill in TF_VAR_equinix_client_id/secret, TF_VAR_azure_subscription_id,
+# TF_VAR_admin_ssh_public_key, and optionally TF_VAR_bgp_auth_key.
+
+source .env
 az login      # azurerm provider picks up the CLI session automatically
 ```
 

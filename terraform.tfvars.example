@@ -32,11 +32,11 @@ azure_er_fastpath_enabled = false
 # azure_er_authorization_key = ""   # Only needed for cross-subscription ER circuits
 
 # VM
+# admin_ssh_public_key is set via TF_VAR_admin_ssh_public_key in .env, not here — see .env.example.
 vm_size            = "Standard_B1s"
 vm_admin_username  = "fredadmin"
-admin_ssh_public_key = "ssh-rsa AAAAB3Nza...your-key... comment"   # registered in Azure as fred-ssh-key
-admin_source_cidr    = "203.0.113.10/32"   # TODO: restrict to your own public IP
-onprem_test_prefix   = "10.11.0.1/32"      # loopback/test IP on the NE side, advertised into BGP
+admin_source_cidr  = "203.0.113.10/32"   # TODO: restrict to your own public IP
+onprem_test_prefix = "10.11.0.1/32"      # loopback/test IP on the NE side, advertised into BGP
 
 # ─── Equinix ──────────────────────────────────────────────────────────────────
 # export TF_VAR_equinix_client_id="your-client-id"
