@@ -67,12 +67,12 @@ flowchart TB
         Device --> Secondary
     end
 
-    subgraph ERC["Azure Express Route (Dublin)"]
+    subgraph ERC["<b>Azure Express Route (Dublin)</b>"]
         EPPrimary["Azure ER Endpoint\nPRIMARY\n172.20.0.2/30"]
         EPSecondary["Azure ER Endpoint\nSECONDARY\n172.20.0.6/30"]
     end
 
-    subgraph AZR["Azure — North Europe (Dublin)"]
+    subgraph AZR["<b>Azure — North Europe (Dublin)</b>"]
         VNG["Virtual Network Gateway\n192.168.11.0/27"]
 
         subgraph VNet["<b>fred-vnet-hub-dublin — 192.168.11.0/24</b>"]
