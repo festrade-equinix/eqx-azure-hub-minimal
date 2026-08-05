@@ -10,18 +10,17 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 - [2. Architecture](#2-architecture) — diagram of what's existing vs. created
 - [3. Prerequisites](#3-prerequisites) — tools, access, and existing infra you need before running this
 - [4. Resource inventory](#4-resource-inventory) — every resource this Terraform touches
-- [5. Why this device + circuit](#5-why-this-device--circuit) — design rationale for the NE device and ER circuit used
-- [6. Deployment](#6-deployment) — step-by-step apply instructions
-- [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed) — required manual step for self-managed NE devices
-- [8. End-to-end ping test](#8-end-to-end-ping-test) — optional connectivity proof
-- [9. Key design notes](#9-key-design-notes) — non-obvious decisions and constraints
-- [10. Teardown](#10-teardown)
+- [5. Quick Start](#5-quick-start) — step-by-step apply instructions
+- [6. Post-deployment setup](#6-post-deployment-setup) — manual NE BGP config
+- [7. End-to-end ping test](#7-end-to-end-ping-test) — optional connectivity proof
+- [8. Key design notes](#8-key-design-notes) — non-obvious decisions and constraints
+- [9. Teardown](#9-teardown)
 
 ## 1. Required information
 
 Most of these go in `terraform.tfvars` (copy it from `terraform.tfvars.example`).
 The ones marked *(.env)* go in `.env` instead (copy it from `.env.example`) —
-see [Deployment](#6-deployment) for how the two files are used together.
+see [Quick Start](#5-quick-start) for how the two files are used together.
 Examples below are taken directly from those two files; replace them with
 your own values.
 
@@ -123,7 +122,7 @@ flowchart TB
   Connections and (if applicable) configure NE BGP.
 - **Equinix Portal login**: to reach the Network Edge device's console for
   the manual BGP step, use SSH if your device is self-managed/BYOL (see
-  [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed)).
+  [Manual BGP config](#manual-bgp-config-ne-device)).
 
 ## 4. Resource inventory
 
@@ -143,26 +142,9 @@ flowchart TB
 | 8 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
 | 9 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
 
-NE BGP configuration is **not** a Terraform resource — see [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed).
+NE BGP configuration is **not** a Terraform resource — see [Manual BGP config](#manual-bgp-config-ne-device).
 
-## 5. Why this device + circuit
-
-- **fred-cisco-PA** (uuid `371987e0-43fe-4328-a251-039bdc598c0a`) is an existing
-  Network Edge device in the Paris (PA) metro. Its connections to Azure in
-  Dublin are **remote / cross-metro** — supported because the Azure
-  ExpressRoute service profile has `allowRemoteConnections = true`.
-- **fred-er-dublin** is a pre-existing Azure ExpressRoute Circuit
-  (`frederic.estrade_rg`, `northeurope`, provider Equinix, peering location
-  "Dublin Metro"). Its `service_key` is read automatically via the
-  `azurerm_express_route_circuit` data source and used as the Equinix Fabric
-  `authentication_key`.
-- The Azure ExpressRoute service profile has
-  `connection_redundancy_required = true`, so **both a primary and a
-  secondary Fabric connection are mandatory** — the secondary joins the
-  redundancy group Equinix assigns to the primary
-  (`one(equinix_fabric_connection.ne_to_azure_primary.redundancy).group`).
-
-## 6. Deployment
+## 5. Quick Start
 
 > **`terraform.tfstate` contains plaintext secrets** — the Cisco device's
 > admin password, the ExpressRoute circuit's service key, and the BGP MD5
@@ -204,7 +186,7 @@ terraform apply tfplan
 ### 2 (alternative) — Step-by-step with `-target`
 
 Mirrors the 9 automated steps — NE BGP routing is a manual step outside
-Terraform (see [7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed)),
+Terraform (see [Manual BGP config](#manual-bgp-config-ne-device)),
 since NE devices are self-managed/BYOL by default and Equinix's managed
 config-push API can't reach them:
 
@@ -237,7 +219,7 @@ terraform plan
 ```
 
 Then configure NE BGP manually — see
-[7. Manual BGP config](#7-manual-bgp-config-fred-cisco-pa-is-self-managed).
+[Manual BGP config](#manual-bgp-config-ne-device).
 
 ### 3. Post-deployment checks
 
@@ -259,15 +241,14 @@ az network vpn-connection show \
 ssh fredadmin@$(terraform output -raw vm_public_ip)
 ```
 
-## 7. Manual BGP config (fred-cisco-PA is self-managed)
+## 6. Post-deployment setup
 
-This repo does **not** manage NE BGP config via Terraform — deliberately.
-Equinix's managed config-push API (what the `equinix_network_bgp` resource
-relies on) only reaches Equinix-managed devices. Real-world NE devices are
-self-managed/BYOL far more often than not (`equinix_network_device.
-self_managed` reads `true` for fred-cisco-PA), so rather than ship a
-resource that fails for most deployments, BGP is configured manually here
-— treat this as the standard step, not a fallback.
+### Manual BGP config (NE device)
+
+This section covers BGP peering configuration on the Network Edge device
+side — outside Terraform, since NE devices are typically self-managed.
+Below is a Cisco C8000v example (fred-cisco-PA); adapt the syntax if your
+device runs a different platform.
 
 Each Fabric connection binds to its own dedicated interface (not a VLAN
 sub-interface); confirm via `terraform state show
@@ -315,7 +296,7 @@ Once applied, verify via the Azure Portal → `fred-er-dublin` →
 **Circuit Status** tab: ARP/BGP Availability should flip from "Not
 Available" to available for both Primary and Secondary IPv4.
 
-## 8. End-to-end ping test
+## 7. End-to-end ping test
 
 `10.11.0.1` doesn't exist on fred-cisco-PA yet — it's a loopback added
 purely to prove the BGP path end-to-end. It must be advertised into BGP or
@@ -357,7 +338,7 @@ check `terraform output equinix_ne_bgp_to_azure_primary_state` /
 after `allow-ssh`/`allow-icmp` at 100/110 — no conflict, but a stricter
 custom rule added later at a lower priority number would shadow it).
 
-## 9. Key design notes
+## 8. Key design notes
 
 - **Redundancy is mandatory** — the Azure ExpressRoute service profile sets
   `connection_redundancy_required = true`; there is no non-redundant path.
@@ -381,7 +362,7 @@ custom rule added later at a lower priority number would shadow it).
   config-push API only reaches Equinix-managed devices, and self-managed/BYOL
   is the norm for real NE devices. Configured manually — see section 7.
 
-## 10. Teardown
+## 9. Teardown
 
 ```bash
 # ⚠️  This immediately disrupts hybrid connectivity to Azure and deletes the VM.
