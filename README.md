@@ -68,19 +68,14 @@ flowchart TB
     end
 
     subgraph AZC["Azure — North Europe (Dublin)"]
-        ERPeering["fred-er-dublin\nExpressRoute Circuit — 2 VCs\nAzurePrivatePeering\n172.20.0.2/30 · 172.20.0.6/30"]
-        VNG["Virtual Network Gateway\nStandard · ExpressRoute"]
+        ERPeering["fred-er-dublin\nExpressRoute Circuit — 2 VCs\n172.20.0.2/30 · 172.20.0.6/30"]
+        VNG["Virtual Network Gateway\n192.168.11.0/27"]
         VNGConn["VNG ↔ ER connection"]
         ERPeering --> VNG --> VNGConn
     end
 
     subgraph VNet["fred-vnet-hub-dublin — 192.168.11.0/24"]
-        GatewaySubnet["GatewaySubnet\n192.168.11.0/27"]
-
         subgraph Workload["fred-snet-workload-dublin — 192.168.11.128/25"]
-            direction LR
-            NSG["NSG"]
-            RouteTable["Route table"]
             VM["fred-vm-dublin\n192.168.11.132"]
         end
     end
@@ -93,7 +88,7 @@ flowchart TB
     classDef azure fill:#dbe9ff,stroke:#5b8def,color:#0d2b5e
 
     class EQX,Device,Primary,Secondary equinix
-    class AZC,ERPeering,VNG,VNGConn,VNet,Workload,GatewaySubnet,NSG,RouteTable,VM azure
+    class AZC,ERPeering,VNG,VNGConn,VNet,Workload,VM azure
 ```
 
 `Orange` = Equinix Fabric · `Blue` = Azure (Microsoft)
