@@ -113,15 +113,15 @@ output "bgp_summary" {
   description = "BGP configuration applied to both NE ↔ Azure peerings."
   value = {
     primary = {
-      local_ip   = cidrhost(var.azure_primary_peer_subnet, 2)
-      remote_ip  = cidrhost(var.azure_primary_peer_subnet, 1)
+      local_ip   = cidrhost(var.azure_primary_peer_subnet, 1)
+      remote_ip  = cidrhost(var.azure_primary_peer_subnet, 2)
       local_asn  = var.customer_bgp_asn
       remote_asn = var.azure_microsoft_bgp_asn
       vlan       = var.azure_vlan_id
     }
     secondary = {
-      local_ip   = cidrhost(var.azure_secondary_peer_subnet, 2)
-      remote_ip  = cidrhost(var.azure_secondary_peer_subnet, 1)
+      local_ip   = cidrhost(var.azure_secondary_peer_subnet, 1)
+      remote_ip  = cidrhost(var.azure_secondary_peer_subnet, 2)
       local_asn  = var.customer_bgp_asn
       remote_asn = var.azure_microsoft_bgp_asn
       vlan       = var.azure_vlan_id

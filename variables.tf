@@ -205,13 +205,13 @@ variable "azure_vlan_id" {
 # ─── Equinix NE BGP — Azure ExpressRoute peering (primary + secondary) ───────
 
 variable "azure_primary_peer_subnet" {
-  description = "/30 subnet for the primary BGP session on the ExpressRoute private peering. Azure takes .1, the NE device takes .2."
+  description = "/30 subnet for the primary BGP session on the ExpressRoute private peering. The NE device takes .1, Azure takes .2."
   type        = string
   default     = "172.20.0.0/30"
 }
 
 variable "azure_secondary_peer_subnet" {
-  description = "/30 subnet for the secondary BGP session on the ExpressRoute private peering. Azure takes .1, the NE device takes .2."
+  description = "/30 subnet for the secondary BGP session on the ExpressRoute private peering. The NE device takes .1, Azure takes .2."
   type        = string
   default     = "172.20.0.4/30"
 }

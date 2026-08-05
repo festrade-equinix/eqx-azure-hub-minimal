@@ -229,9 +229,9 @@ resource "azurerm_express_route_circuit_peering" "private" {
 
 resource "equinix_network_bgp" "to_azure_primary" {
   connection_id      = equinix_fabric_connection.ne_to_azure_primary.id
-  local_ip_address   = "${cidrhost(var.azure_primary_peer_subnet, 2)}/${element(split("/", var.azure_primary_peer_subnet), 1)}"
+  local_ip_address   = "${cidrhost(var.azure_primary_peer_subnet, 1)}/${element(split("/", var.azure_primary_peer_subnet), 1)}"
   local_asn          = var.customer_bgp_asn
-  remote_ip_address  = cidrhost(var.azure_primary_peer_subnet, 1)
+  remote_ip_address  = cidrhost(var.azure_primary_peer_subnet, 2)
   remote_asn         = var.azure_microsoft_bgp_asn
   authentication_key = var.bgp_auth_key != "" ? var.bgp_auth_key : null
 
@@ -240,9 +240,9 @@ resource "equinix_network_bgp" "to_azure_primary" {
 
 resource "equinix_network_bgp" "to_azure_secondary" {
   connection_id      = equinix_fabric_connection.ne_to_azure_secondary.id
-  local_ip_address   = "${cidrhost(var.azure_secondary_peer_subnet, 2)}/${element(split("/", var.azure_secondary_peer_subnet), 1)}"
+  local_ip_address   = "${cidrhost(var.azure_secondary_peer_subnet, 1)}/${element(split("/", var.azure_secondary_peer_subnet), 1)}"
   local_asn          = var.customer_bgp_asn
-  remote_ip_address  = cidrhost(var.azure_secondary_peer_subnet, 1)
+  remote_ip_address  = cidrhost(var.azure_secondary_peer_subnet, 2)
   remote_asn         = var.azure_microsoft_bgp_asn
   authentication_key = var.bgp_auth_key != "" ? var.bgp_auth_key : null
 

@@ -60,10 +60,9 @@ reasonable to leave as-is for a first deployment.
 ```mermaid
 flowchart TB
     subgraph EQX["Equinix Fabric — Paris (PA metro)"]
-        direction LR
-        Device["fred-cisco-PA\nNetwork Edge device"]
-        Primary["Fabric VC PRIMARY\nBGP 172.20.0.2/30 ↔ .1"]
-        Secondary["Fabric VC SECONDARY\nBGP 172.20.0.6/30 ↔ .5"]
+        Device["fred-cisco-PA\nNetwork Edge device\nLoopback0: 10.11.0.1"]
+        Primary["Fabric Connection (VC) PRIMARY\n172.20.0.1/30"]
+        Secondary["Fabric Connection (VC) SECONDARY\n172.20.0.5/30"]
         Device --> Primary
         Device --> Secondary
     end
@@ -71,20 +70,20 @@ flowchart TB
     subgraph AZC["Azure — North Europe (Dublin)"]
         direction LR
         ERCircuit["fred-er-dublin\nExpressRoute Circuit"]
-        Peering["AzurePrivatePeering\n.0/30 · .4/30"]
+        Peering["AzurePrivatePeering\n172.20.0.2/30 · 172.20.0.6/30"]
         VNGConn["VNG ↔ ER connection"]
         VNG["Virtual Network Gateway\nStandard · ExpressRoute"]
         ERCircuit --> Peering --> VNGConn --> VNG
     end
 
     subgraph VNet["fred-vnet-hub-dublin — 192.168.11.0/24"]
-        GatewaySubnet["GatewaySubnet\n.0/27"]
+        GatewaySubnet["GatewaySubnet\n192.168.11.0/27"]
 
-        subgraph Workload["fred-snet-workload-dublin — .128/25"]
+        subgraph Workload["fred-snet-workload-dublin — 192.168.11.128/25"]
             direction LR
             NSG["NSG"]
             RouteTable["Route table"]
-            VM["fred-vm-dublin"]
+            VM["fred-vm-dublin\n192.168.11.132"]
         end
     end
 
@@ -312,25 +311,25 @@ At time of writing: primary → `GigabitEthernet9`, secondary →
 ```
 interface GigabitEthernet9
  description Equinix Fabric VC to Azure ER Dublin - PRIMARY (fred-ne-pa-azure-pri)
- ip address 172.20.0.2 255.255.255.252
+ ip address 172.20.0.1 255.255.255.252
  no shutdown
 !
 interface GigabitEthernet5
  description Equinix Fabric VC to Azure ER Dublin - SECONDARY (fred-ne-pa-azure-sec)
- ip address 172.20.0.6 255.255.255.252
+ ip address 172.20.0.5 255.255.255.252
  no shutdown
 !
 router bgp 65001
- neighbor 172.20.0.1 remote-as 12076
- neighbor 172.20.0.1 password <TF_VAR_bgp_auth_key from .env>
- neighbor 172.20.0.5 remote-as 12076
- neighbor 172.20.0.5 password <TF_VAR_bgp_auth_key from .env>
+ neighbor 172.20.0.2 remote-as 12076
+ neighbor 172.20.0.2 password <TF_VAR_bgp_auth_key from .env>
+ neighbor 172.20.0.6 remote-as 12076
+ neighbor 172.20.0.6 password <TF_VAR_bgp_auth_key from .env>
  !
  address-family ipv4
-  neighbor 172.20.0.1 activate
-  neighbor 172.20.0.1 soft-reconfiguration inbound
-  neighbor 172.20.0.5 activate
-  neighbor 172.20.0.5 soft-reconfiguration inbound
+  neighbor 172.20.0.2 activate
+  neighbor 172.20.0.2 soft-reconfiguration inbound
+  neighbor 172.20.0.6 activate
+  neighbor 172.20.0.6 soft-reconfiguration inbound
  exit-address-family
 ```
 
