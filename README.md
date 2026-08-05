@@ -59,7 +59,7 @@ reasonable to leave as-is for a first deployment.
 
 ```mermaid
 flowchart TB
-    subgraph EQX["Equinix Fabric — Paris (PA metro)"]
+    subgraph EQX["<b>Equinix Fabric — Paris (PA metro)</b>"]
         Device["fred-cisco-PA\nNetwork Edge device\nLoopback0: 10.11.0.1"]
         Primary["Fabric Connection (VC) PRIMARY\n172.20.0.1/30"]
         Secondary["Fabric Connection (VC) SECONDARY\n172.20.0.5/30"]
@@ -68,30 +68,35 @@ flowchart TB
     end
 
     subgraph AZC["Azure — North Europe (Dublin)"]
-        ERPeering["fred-er-dublin\nExpressRoute Circuit — 2 VCs\n172.20.0.2/30 · 172.20.0.6/30"]
+        EPPrimary["Azure ER Endpoint\nPRIMARY\n172.20.0.2/30"]
+        EPSecondary["Azure ER Endpoint\nSECONDARY\n172.20.0.6/30"]
+        ERCircuit["fred-er-dublin\nExpressRoute Circuit"]
         VNG["Virtual Network Gateway\n192.168.11.0/27"]
-        VNGConn["VNG ↔ ER connection"]
-        ERPeering --> VNG --> VNGConn
+        EPPrimary --> ERCircuit
+        EPSecondary --> ERCircuit
+        ERCircuit --> VNG
     end
 
-    subgraph VNet["fred-vnet-hub-dublin — 192.168.11.0/24"]
+    subgraph VNet["<b>fred-vnet-hub-dublin — 192.168.11.0/24</b>"]
         subgraph Workload["fred-snet-workload-dublin — 192.168.11.128/25"]
             VM["fred-vm-dublin\n192.168.11.132"]
         end
     end
 
-    Primary --> ERPeering
-    Secondary --> ERPeering
-    VNGConn --> VNet
+    Primary ==> EPPrimary
+    Secondary ==> EPSecondary
+    VNG -->|VNG ↔ ER connection| VNet
 
     classDef equinix fill:#ffe8cc,stroke:#e8871e,color:#5c3a0a
     classDef azure fill:#dbe9ff,stroke:#5b8def,color:#0d2b5e
+    classDef circuit fill:#ffd6d6,stroke:#e05a5a,color:#7a1f1f
 
     class EQX,Device,Primary,Secondary equinix
-    class AZC,ERPeering,VNG,VNGConn,VNet,Workload,VM azure
+    class AZC,EPPrimary,EPSecondary,VNG,VNet,Workload,VM azure
+    class ERCircuit circuit
 ```
 
-`Orange` = Equinix Fabric · `Blue` = Azure (Microsoft)
+`Orange` = Equinix Fabric · `Blue` = Azure (Microsoft) · `Red` = ExpressRoute Circuit
 
 ## 3. Prerequisites
 
