@@ -67,31 +67,33 @@ flowchart TB
         Device --> Secondary
     end
 
-    subgraph AZC["Azure — North Europe (Dublin)"]
+    subgraph ERC["Azure Express Route (Dublin)"]
         EPPrimary["Azure ER Endpoint\nPRIMARY\n172.20.0.2/30"]
         EPSecondary["Azure ER Endpoint\nSECONDARY\n172.20.0.6/30"]
-        ERCircuit["fred-er-dublin\n<b>Azure ExpressRoute Circuit</b>"]
-        VNGHub["Virtual Network Gateway\n192.168.11.0/27\nVNG ↔ ER connection"]
-        EPPrimary --> ERCircuit
-        EPSecondary --> ERCircuit
-        ERCircuit --> VNGHub
     end
 
-    subgraph VNet["<b>fred-vnet-hub-dublin — 192.168.11.0/24</b>"]
-        subgraph Workload["fred-snet-workload-dublin — 192.168.11.128/25"]
-            VM["fred-vm-dublin\n192.168.11.132"]
+    subgraph AZR["Azure — North Europe (Dublin)"]
+        VNG["Virtual Network Gateway\n192.168.11.0/27"]
+
+        subgraph VNet["<b>fred-vnet-hub-dublin — 192.168.11.0/24</b>"]
+            subgraph Workload["fred-snet-workload-dublin — 192.168.11.128/25"]
+                VM["fred-vm-dublin\n192.168.11.132"]
+            end
         end
+
+        VNG --> VNet
     end
 
     Primary ==> EPPrimary
     Secondary ==> EPSecondary
-    VNGHub --> VNet
+    EPPrimary -->|VNG ↔ ER connection| VNG
+    EPSecondary -->|VNG ↔ ER connection| VNG
 
     classDef equinix fill:#ffe8cc,stroke:#e8871e,color:#5c3a0a
     classDef azure fill:#dbe9ff,stroke:#5b8def,color:#0d2b5e
 
     class EQX,Device,Primary,Secondary equinix
-    class AZC,EPPrimary,EPSecondary,ERCircuit,VNGHub,VNet,Workload,VM azure
+    class ERC,EPPrimary,EPSecondary,AZR,VNG,VNet,Workload,VM azure
 ```
 
 `Orange` = Equinix Fabric · `Blue` = Azure (Microsoft)
