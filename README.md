@@ -9,18 +9,18 @@ with a VM reachable from on-prem over BGP once the private peering is up.
 - [1. Required information](#1-required-information) — every variable you must fill in with your own values
 - [2. Architecture](#2-architecture) — diagram of what's existing vs. created
 - [3. Prerequisites](#3-prerequisites) — tools, access, and existing infra you need before running this
-- [4. Resource inventory](#4-resource-inventory) — every resource this Terraform touches
-- [5. Quick Start](#5-quick-start) — step-by-step apply instructions
-- [6. Post-deployment setup](#6-post-deployment-setup) — manual NE BGP config
-- [7. End-to-end ping test](#7-end-to-end-ping-test) — optional connectivity proof
-- [8. Key design notes](#8-key-design-notes) — non-obvious decisions and constraints
-- [9. Teardown](#9-teardown)
+- [4. Quick Start](#4-quick-start) — step-by-step apply instructions
+- [5. Post-deployment setup](#5-post-deployment-setup) — manual NE BGP config
+- [6. End-to-end ping test](#6-end-to-end-ping-test) — optional connectivity proof
+- [7. Key design notes](#7-key-design-notes) — non-obvious decisions and constraints
+- [8. Teardown](#8-teardown)
+- [9. Resource inventory](#9-resource-inventory) — every resource this Terraform touches
 
 ## 1. Required information
 
 Most of these go in `terraform.tfvars` (copy it from `terraform.tfvars.example`).
 The ones marked *(.env)* go in `.env` instead (copy it from `.env.example`) —
-see [Quick Start](#5-quick-start) for how the two files are used together.
+see [Quick Start](#4-quick-start) for how the two files are used together.
 Examples below are taken directly from those two files; replace them with
 your own values.
 
@@ -124,27 +124,7 @@ flowchart TB
   the manual BGP step, use SSH if your device is self-managed/BYOL (see
   [Manual BGP config](#manual-bgp-config-ne-device)).
 
-## 4. Resource inventory
-
-| # | Resource | Provider | Action |
-|---|---|---|---|
-| | ExpressRoute Circuit (fred-er-dublin) | Azure | `data` — by name + RG |
-| | Resource Group | Azure | `data` — frederic.estrade_rg |
-| | Network Edge device (fred-cisco-PA) | Equinix | `data` — by UUID |
-| | Azure ER service profile | Equinix | `data` — by UUID |
-| 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
-| 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
-| 3 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
-| 4 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
-| 5 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
-| 6 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
-| 7 | **NSG (allow SSH + ICMP)** | **Azure** | **resource — associated to workload subnet** |
-| 8 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
-| 9 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
-
-NE BGP configuration is **not** a Terraform resource — see [Manual BGP config](#manual-bgp-config-ne-device).
-
-## 5. Quick Start
+## 4. Quick Start
 
 > **`terraform.tfstate` contains plaintext secrets** — the Cisco device's
 > admin password, the ExpressRoute circuit's service key, and the BGP MD5
@@ -241,7 +221,7 @@ az network vpn-connection show \
 ssh fredadmin@$(terraform output -raw vm_public_ip)
 ```
 
-## 6. Post-deployment setup
+## 5. Post-deployment setup
 
 ### Manual BGP config (NE device)
 
@@ -296,7 +276,7 @@ Once applied, verify via the Azure Portal → `fred-er-dublin` →
 **Circuit Status** tab: ARP/BGP Availability should flip from "Not
 Available" to available for both Primary and Secondary IPv4.
 
-## 7. End-to-end ping test
+## 6. End-to-end ping test
 
 `10.11.0.1` doesn't exist on fred-cisco-PA yet — it's a loopback added
 purely to prove the BGP path end-to-end. It must be advertised into BGP or
@@ -338,7 +318,7 @@ check `terraform output equinix_ne_bgp_to_azure_primary_state` /
 after `allow-ssh`/`allow-icmp` at 100/110 — no conflict, but a stricter
 custom rule added later at a lower priority number would shadow it).
 
-## 8. Key design notes
+## 7. Key design notes
 
 - **Redundancy is mandatory** — the Azure ExpressRoute service profile sets
   `connection_redundancy_required = true`; there is no non-redundant path.
@@ -360,11 +340,32 @@ custom rule added later at a lower priority number would shadow it).
   to the deploying operator's detected public IP. Widen only if needed.
 - **NE BGP is deliberately not a Terraform resource** — Equinix's managed
   config-push API only reaches Equinix-managed devices, and self-managed/BYOL
-  is the norm for real NE devices. Configured manually — see section 7.
+  is the norm for real NE devices. Configured manually — see
+  [Manual BGP config](#manual-bgp-config-ne-device).
 
-## 9. Teardown
+## 8. Teardown
 
 ```bash
 # ⚠️  This immediately disrupts hybrid connectivity to Azure and deletes the VM.
 terraform destroy
 ```
+
+## 9. Resource inventory
+
+| # | Resource | Provider | Action |
+|---|---|---|---|
+| | ExpressRoute Circuit (fred-er-dublin) | Azure | `data` — by name + RG |
+| | Resource Group | Azure | `data` — frederic.estrade_rg |
+| | Network Edge device (fred-cisco-PA) | Equinix | `data` — by UUID |
+| | Azure ER service profile | Equinix | `data` — by UUID |
+| 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
+| 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
+| 3 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
+| 4 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
+| 5 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
+| 6 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
+| 7 | **NSG (allow SSH + ICMP)** | **Azure** | **resource — associated to workload subnet** |
+| 8 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
+| 9 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
+
+NE BGP configuration is **not** a Terraform resource — see [Manual BGP config](#manual-bgp-config-ne-device).
