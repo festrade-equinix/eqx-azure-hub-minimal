@@ -7,7 +7,7 @@
 variable "project_name" {
   description = "Prefix applied to all resource names created by this module."
   type        = string
-  default     = "fred-azure-hub-dublin"
+  default     = "azure-hub-dublin"
 }
 
 variable "environment" {
@@ -19,7 +19,7 @@ variable "environment" {
 variable "owner" {
   description = "Team or individual responsible for these resources."
   type        = string
-  default     = "fred"
+  default     = "yourname"
 }
 
 variable "equinix_connection_prefix" {
@@ -138,7 +138,7 @@ variable "vm_size" {
 variable "vm_admin_username" {
   description = "Admin username for the reference VM."
   type        = string
-  default     = "fredadmin"
+  default     = "azureadmin"
 }
 
 variable "admin_ssh_public_key" {
@@ -152,7 +152,7 @@ variable "admin_source_cidr" {
 }
 
 variable "onprem_test_prefix" {
-  description = "On-prem (NE-side) prefix allowed to ping the VM over the ExpressRoute path, for BGP connectivity testing. E.g. a loopback on fred-cisco-PA advertised into BGP."
+  description = "On-prem (NE-side) prefix allowed to ping the VM over the ExpressRoute path, for BGP connectivity testing. E.g. a loopback on your-ne-device advertised into BGP."
   type        = string
   default     = "10.11.0.1/32"
 }
@@ -229,7 +229,7 @@ variable "azure_microsoft_bgp_asn" {
 }
 
 variable "customer_bgp_asn" {
-  description = "BGP ASN of the Network Edge device (customer side, fred-cisco-PA = 65001). The equinix_network_device data source reports asn = 0 (unset), so this is supplied explicitly rather than read back."
+  description = "BGP ASN of the Network Edge device (customer side, your-ne-device = 65001). The equinix_network_device data source reports asn = 0 (unset), so this is supplied explicitly rather than read back."
   type        = number
   default     = 65001
 }

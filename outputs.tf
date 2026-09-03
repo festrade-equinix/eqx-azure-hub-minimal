@@ -22,12 +22,12 @@ output "azure_er_provisioning_state" {
 # ─── Equinix data sources ─────────────────────────────────────────────────────
 
 output "equinix_ne_device_id" {
-  description = "UUID of the existing Network Edge device (fred-cisco-PA)."
+  description = "UUID of the existing Network Edge device (your-ne-device)."
   value       = data.equinix_network_device.this.id
 }
 
 output "equinix_ne_device_reported_asn" {
-  description = "ASN reported by the equinix_network_device data source (reads 0/unset for fred-cisco-PA — the actual BGP ASN used is var.customer_bgp_asn)."
+  description = "ASN reported by the equinix_network_device data source (reads 0/unset for your-ne-device — the actual BGP ASN used is var.customer_bgp_asn)."
   value       = data.equinix_network_device.this.asn
 }
 

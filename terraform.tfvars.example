@@ -7,9 +7,9 @@
 ###############################################################################
 
 # ─── Project ──────────────────────────────────────────────────────────────────
-project_name = "fred-azure-hub-dublin"
+project_name = "azure-hub-dublin"
 environment  = "dev"
-owner        = "fred"
+owner        = "yourname"
 
 # ─── Azure ────────────────────────────────────────────────────────────────────
 # Provide via environment variables to avoid storing secrets in files:
@@ -34,7 +34,7 @@ azure_er_fastpath_enabled = false
 # VM
 # admin_ssh_public_key is set via TF_VAR_admin_ssh_public_key in .env, not here — see .env.example.
 vm_size            = "Standard_B1s"
-vm_admin_username  = "fredadmin"
+vm_admin_username  = "azureadmin"
 admin_source_cidr  = "203.0.113.10/32"   # TODO: restrict to your own public IP
 onprem_test_prefix = "10.11.0.1/32"      # loopback/test IP on the NE side, advertised into BGP
 
@@ -56,7 +56,7 @@ azure_vlan_id               = 300
 azure_primary_peer_subnet   = "172.20.0.0/30"
 azure_secondary_peer_subnet = "172.20.0.4/30"
 azure_microsoft_bgp_asn     = 12076
-customer_bgp_asn            = 65001   # fred-cisco-PA's configured router ASN
+customer_bgp_asn            = 65001   # your-ne-device's configured router ASN
 
 # ─── Notifications & Billing ──────────────────────────────────────────────────
 notification_emails = ["your-team@example.com"]   # TODO: your notification address(es)

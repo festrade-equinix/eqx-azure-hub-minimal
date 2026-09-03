@@ -3,9 +3,9 @@
 #
 # ┌──────────────────────────────────────────────────────────────────────────┐
 # │  EXISTING resources (data sources — never modified by Terraform)         │
-# │  EQX   : Network Edge device fred-cisco-PA (Paris) — remote/cross-metro  │
-# │  Azure : ExpressRoute Circuit fred-er-dublin (peering location: Dublin)  │
-# │  Azure : Resource Group frederic.estrade_rg                              │
+# │  EQX   : Network Edge device your-ne-device (Paris) — remote/cross-metro  │
+# │  Azure : ExpressRoute Circuit my-expressroute-circuit (peering location: Dublin)  │
+# │  Azure : Resource Group my-resource-group                              │
 # ├──────────────────────────────────────────────────────────────────────────┤
 # │  CREATED by this Terraform                                               │
 # │  EQX   : Fabric Connection NE → Azure ER, PRIMARY   (EVPL_VC / VD a-side)│
@@ -74,7 +74,7 @@ data "azurerm_express_route_circuit" "this" {
 # DATA SOURCES — Equinix existing resources
 ###############################################################################
 
-# Existing Network Edge device (fred-cisco-PA, Paris) — remote connection to
+# Existing Network Edge device (your-ne-device, Paris) — remote connection to
 # the Dublin-peered Azure ExpressRoute circuit over the Equinix backbone.
 data "equinix_network_device" "this" {
   uuid = var.equinix_ne_device_uuid
