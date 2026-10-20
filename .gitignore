@@ -6,3 +6,4 @@ tfplan
 terraform.tfvars
 .env
 crash.log
+par.tfvars

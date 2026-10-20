@@ -22,17 +22,6 @@ variable "owner" {
   default     = "yourname"
 }
 
-variable "equinix_connection_prefix" {
-  description = "Short prefix for the Equinix Fabric connection names — typically your employee short name/handle, matching the account's naming convention for identifying whose resources are whose in a shared sandbox. Equinix enforces a 24-char total name limit, and connections are suffixed with '-azure-pri'/'-azure-sec' (10 chars), so this must be <= 14 chars."
-  type        = string
-  default     = "yourname"
-
-  validation {
-    condition     = length(var.equinix_connection_prefix) <= 14
-    error_message = "equinix_connection_prefix must be 14 characters or fewer (Equinix connection names are capped at 24 chars total)."
-  }
-}
-
 # ─── Azure — Provider ─────────────────────────────────────────────────────────
 
 variable "azure_subscription_id" {
@@ -60,6 +49,12 @@ variable "azure_client_secret" {
   type        = string
   sensitive   = true
   default     = null
+}
+
+variable "region_label" {
+  description = "Human-readable region name used in the Region tag (e.g. Dublin, Amsterdam)."
+  type        = string
+  default     = "Dublin"
 }
 
 variable "azure_region" {

@@ -5,63 +5,46 @@ Equinix Network Edge device over a redundant ExpressRoute Fabric connection,
 with a VM reachable from on-prem over BGP once the private peering is up.
 
 This project is built in the Dublin region as an example — the same
-pattern applies to any Azure region and Equinix metro.
+pattern applies to any Azure region and Equinix metro. Each region/metro gets its
+own `.tfvars` file and its own Terraform workspace (own state) — see
+[Another region](#another-region-separate-state).
 
 It requires an existing Network Edge device and an existing Azure
 ExpressRoute Circuit — its service key (from the Azure Portal) is provided
-explicitly via `.env`. See [1. Required information](#1-required-information).
+explicitly via `.env`. See [3. Required information](#3-required-information).
 
 ## Summary
 
-- [1. Required information](#1-required-information) — every variable you must fill in with your own values
+- [1. Resource inventory](#1-resource-inventory) — every resource this Terraform touches
 - [2. Architecture](#2-architecture) — diagram of what's existing vs. created
-- [3. Prerequisites](#3-prerequisites) — tools, access, and existing infra you need before running this
-- [4. Quick Start](#4-quick-start) — step-by-step apply instructions
-- [5. Post-deployment setup](#5-post-deployment-setup) — manual NE BGP config
-- [6. End-to-end ping test](#6-end-to-end-ping-test) — optional connectivity proof
-- [7. Key design notes](#7-key-design-notes) — non-obvious decisions and constraints
-- [8. Teardown](#8-teardown)
-- [9. Resource inventory](#9-resource-inventory) — every resource this Terraform touches
+- [3. Required information](#3-required-information) — every variable you must fill in with your own values
+- [4. Prerequisites](#4-prerequisites) — tools, access, and existing infra you need before running this
+- [5. Quick Start](#5-quick-start) — step-by-step apply instructions
+- [6. Post-deployment setup](#6-post-deployment-setup) — manual NE BGP config
+- [7. End-to-end ping test](#7-end-to-end-ping-test) — optional connectivity proof
+- [8. Key design notes](#8-key-design-notes) — non-obvious decisions and constraints
+- [9. Teardown](#9-teardown)
 
-## 1. Required information
+## 1. Resource inventory
 
-Most of these go in `terraform.tfvars` (copy it from `terraform.tfvars.example`).
-The ones marked `.env` go in `.env` instead (copy it from `.env.example`) —
-see [Quick Start](#4-quick-start) for how the two files are used together.
-Examples below are taken directly from those two files; replace them with
-your own values.
-
-| Variable | File | What it is | Example |
+| # | Resource | Provider | Action |
 |---|---|---|---|
-| `equinix_client_id` | `.env` | Fabric API Client ID | `your-client-id` |
-| `equinix_client_secret` | `.env` | Fabric API Client Secret | `your-client-secret` |
-| `azure_subscription_id` | `.env` | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `azure_er_service_key` | `.env` | Existing ExpressRoute Circuit's service key | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `admin_ssh_public_key` | `.env` | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
-| `bgp_auth_key` | `.env` | Optional BGP MD5 key | `aB3xTq9LmZk2Wp7VcRn4` |
-| `equinix_ne_device_uuid` | `terraform.tfvars` | Existing NE device UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `equinix_sp_azure_er_uuid` | `terraform.tfvars` | Azure ER service profile UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `equinix_connection_prefix` | `terraform.tfvars` | Fabric connection name prefix | `yourname` |
-| `equinix_azure_metro_code` | `terraform.tfvars` | Equinix metro of the ER circuit | `DB` |
-| `customer_bgp_asn` | `terraform.tfvars` | Your NE device's BGP ASN | `65001` |
-| `ne_azure_bandwidth_mbps` | `terraform.tfvars` | Fabric connection bandwidth (Mbps) | `50` |
-| `notification_emails` | `terraform.tfvars` | Fabric notification email(s) | `["your-team@example.com"]` |
-| `azure_resource_group_name` | `terraform.tfvars` | Existing Resource Group | `my-resource-group` |
-| `azure_er_circuit_name` | `terraform.tfvars` | Existing ExpressRoute Circuit | `my-expressroute-circuit` |
-| `azure_vlan_id` | `terraform.tfvars` | VLAN ID for ER private peering | `300` |
-| `azure_primary_peer_subnet` | `terraform.tfvars` | Primary BGP session /30 | `172.20.0.0/30` |
-| `azure_secondary_peer_subnet` | `terraform.tfvars` | Secondary BGP session /30 | `172.20.0.4/30` |
-| `vnet_address_space` | `terraform.tfvars` | Hub VNet address space | `192.168.11.0/24` |
-| `gateway_subnet_prefix` | `terraform.tfvars` | GatewaySubnet prefix | `192.168.11.0/27` |
-| `workload_subnet_prefix` | `terraform.tfvars` | Workload subnet prefix | `192.168.11.128/25` |
-| `admin_source_cidr` | `terraform.tfvars` | Your public IP for SSH/ICMP | `203.0.113.10/32` |
-| `project_name` | `terraform.tfvars` | Resource name/tag prefix | `azure-hub-dublin` |
-| `owner` | `terraform.tfvars` | Owner tag | `yourname` |
+| | ExpressRoute Circuit (my-expressroute-circuit) | Azure | `data` — by name + RG |
+| | Resource Group | Azure | `data` — my-resource-group |
+| | Network Edge device (your-ne-device) | Equinix | `data` — by UUID |
+| | Azure ER service profile | Equinix | `data` — by UUID |
+| 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
+| 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
+| 3 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
+| 4 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
+| 5 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
+| 6 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
+| 7 | **NSG (allow SSH + ICMP + on-prem ping-test ICMP)** | **Azure** | **resource — 3 rules, associated to workload subnet** |
+| 8 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
+| 9 | **SSH public key (`<prefix>-ssh-key`)** | **Azure** | **resource — registered for VM admin access, reusable across VMs** |
+| 10 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
 
-Everything else (`vng_sku`, `vm_size`, `azure_er_fastpath_enabled`,
-`azure_er_authorization_key`, `vm_admin_username`, `onprem_test_prefix`,
-`po_number`, `azure_region`, `environment`) has a generic default that's
-reasonable to leave as-is for a first deployment.
+NE BGP configuration is **not** a Terraform resource — see [Manual BGP config](#manual-bgp-config-ne-device).
 
 ## 2. Architecture
 
@@ -83,9 +66,9 @@ flowchart TB
     subgraph AZR["<b>Azure Infrastructure — North Europe (Dublin)</b>"]
         VNG["Virtual Network Gateway\n192.168.11.0/27"]
 
-        subgraph VNet["<b>azure-hub-dublin-vnet — 192.168.11.0/24</b>"]
-            subgraph Workload["azure-hub-dublin-snet-workload — 192.168.11.128/25"]
-                VM["azure-hub-dublin-vm\n192.168.11.132"]
+        subgraph VNet["<b>azure-hub-db-vnet — 192.168.11.0/24</b>"]
+            subgraph Workload["azure-hub-db-snet-workload — 192.168.11.128/25"]
+                VM["azure-hub-db-vm\n192.168.11.132"]
             end
         end
 
@@ -108,7 +91,53 @@ flowchart TB
 
 `Orange` = Equinix Fabric · `Blue` = Azure (Microsoft) · `Red` = Azure ExpressRoute
 
-## 3. Prerequisites
+## 3. Required information
+
+Most of these go in `terraform.tfvars` (copy it from `terraform.tfvars.example`).
+The ones marked `.env` go in `.env` instead (copy it from `.env.example`) —
+see [Quick Start](#5-quick-start) for how the two files are used together.
+Examples below are taken directly from those two files; replace them with
+your own values.
+
+| Variable | File | What it is | Example |
+|---|---|---|---|
+| `equinix_client_id` | `.env` | Fabric API Client ID | `your-client-id` |
+| `equinix_client_secret` | `.env` | Fabric API Client Secret | `your-client-secret` |
+| `azure_subscription_id` | `.env` | Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `azure_er_service_key` | `.env` | Existing ExpressRoute Circuit's service key | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `admin_ssh_public_key` | `.env` | Your SSH public key | `ssh-rsa AAAAB3Nza...` |
+| `bgp_auth_key` | `.env` | Optional BGP MD5 key | `aB3xTq9LmZk2Wp7VcRn4` |
+| `equinix_ne_device_uuid` | `terraform.tfvars` | Existing NE device UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `equinix_sp_azure_er_uuid` | `terraform.tfvars` | Azure ER service profile UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `equinix_azure_metro_code` | `terraform.tfvars` | Equinix metro of the ER circuit | `DB` |
+| `customer_bgp_asn` | `terraform.tfvars` | Your NE device's BGP ASN | `65001` |
+| `ne_azure_bandwidth_mbps` | `terraform.tfvars` | Fabric connection bandwidth (Mbps) | `50` |
+| `notification_emails` | `terraform.tfvars` | Fabric notification email(s) | `["your-team@example.com"]` |
+| `azure_resource_group_name` | `terraform.tfvars` | Existing Resource Group | `my-resource-group` |
+| `azure_er_circuit_name` | `terraform.tfvars` | Existing ExpressRoute Circuit | `my-expressroute-circuit` |
+| `azure_vlan_id` | `terraform.tfvars` | VLAN ID for ER private peering | `300` |
+| `azure_primary_peer_subnet` | `terraform.tfvars` | Primary BGP session /30 | `172.20.0.0/30` |
+| `azure_secondary_peer_subnet` | `terraform.tfvars` | Secondary BGP session /30 | `172.20.0.4/30` |
+| `vnet_address_space` | `terraform.tfvars` | Hub VNet address space | `192.168.11.0/24` |
+| `gateway_subnet_prefix` | `terraform.tfvars` | GatewaySubnet prefix | `192.168.11.0/27` |
+| `workload_subnet_prefix` | `terraform.tfvars` | Workload subnet prefix | `192.168.11.128/25` |
+| `admin_source_cidr` | `terraform.tfvars` | Your public IP for SSH/ICMP | `203.0.113.10/32` |
+| `project_name` | `terraform.tfvars` | Resource name prefix (≤ 14 chars incl. `-<metro>`); also used as the Fabric connection prefix | `azure-hub` |
+| `region_label` | `terraform.tfvars` | Human-readable region for the `Region` tag | `Dublin` |
+| `owner` | `terraform.tfvars` | Owner tag | `yourname` |
+
+Everything else (`vng_sku`, `vm_size`, `azure_er_fastpath_enabled`,
+`azure_er_authorization_key`, `vm_admin_username`, `onprem_test_prefix`,
+`po_number`, `azure_region`, `environment`) has a generic default that's
+reasonable to leave as-is for a first deployment.
+
+**Naming:** every created asset (Azure and Equinix) is named
+`<project_name>-<metro code, lowercase>-<suffix>`, e.g. `azure-hub-pa-vnet`,
+`azure-hub-pa-azure-pri`. Equinix caps connection names at 24 characters and
+the `-azure-pri` suffix takes 10, so `<project_name>-<metro>` must be 14
+characters or fewer.
+
+## 4. Prerequisites
 
 ### Software
 
@@ -152,7 +181,7 @@ flowchart TB
   Enterprise Edge routers within the same metro, so no single device
   failure on Microsoft's side breaks connectivity.
 
-## 4. Quick Start
+## 5. Quick Start
 
 ### 1. Get the code
 
@@ -238,13 +267,13 @@ az network express-route peering show \
 
 az network vpn-connection show \
   --resource-group my-resource-group \
-  --name azure-hub-dublin-vng-conn-er
+  --name azure-hub-db-vng-conn-er
 
-# SSH to the VM using the fred-ssh-key private key
+# SSH to the VM using the private key matching `<prefix>-ssh-key`
 ssh azureadmin@$(terraform output -raw vm_public_ip)
 ```
 
-## 5. Post-deployment setup
+## 6. Post-deployment setup
 
 ### Manual BGP config (NE device)
 
@@ -263,12 +292,12 @@ At time of writing: primary → `GigabitEthernet9`, secondary →
 
 ```
 interface GigabitEthernet9
- description Equinix Fabric VC to Azure ER Dublin - PRIMARY (yourname-azure-pri)
+ description Equinix Fabric VC to Azure ER Dublin - PRIMARY (azure-hub-db-azure-pri)
  ip address 172.20.0.1 255.255.255.252
  no shutdown
 !
 interface GigabitEthernet5
- description Equinix Fabric VC to Azure ER Dublin - SECONDARY (yourname-azure-sec)
+ description Equinix Fabric VC to Azure ER Dublin - SECONDARY (azure-hub-db-azure-sec)
  ip address 172.20.0.5 255.255.255.252
  no shutdown
 !
@@ -299,7 +328,7 @@ Once applied, verify via the Azure Portal → `my-expressroute-circuit` →
 **Circuit Status** tab: ARP/BGP Availability should flip from "Not
 Available" to available for both Primary and Secondary IPv4.
 
-## 6. End-to-end ping test
+## 7. End-to-end ping test
 
 `10.11.0.1` doesn't exist on your-ne-device yet — it's a loopback added
 purely to prove the BGP path end-to-end. It must be advertised into BGP or
@@ -341,7 +370,7 @@ check `terraform output equinix_ne_bgp_to_azure_primary_state` /
 after `allow-ssh`/`allow-icmp` at 100/110 — no conflict, but a stricter
 custom rule added later at a lower priority number would shadow it).
 
-## 7. Key design notes
+## 8. Key design notes
 
 - **Redundancy is mandatory** — the Azure ExpressRoute service profile sets
   `connection_redundancy_required = true`; there is no non-redundant path.
@@ -366,30 +395,26 @@ custom rule added later at a lower priority number would shadow it).
   is the norm for real NE devices. Configured manually — see
   [Manual BGP config](#manual-bgp-config-ne-device).
 
-## 8. Teardown
+### Another region (separate state)
+
+Use one `.tfvars` per region and one Terraform workspace per region so each
+deployment has its own state file. `init` is not needed again.
+
+```bash
+cp terraform.tfvars par.tfvars     # edit: azure_region, region_label, equinix_azure_metro_code,
+                                   # azure_er_circuit_name, address spaces, VLAN and peer /30s
+terraform workspace new par        # state: terraform.tfstate.d/par/terraform.tfstate
+terraform plan  -var-file=par.tfvars -out=tfplan
+terraform apply tfplan
+terraform workspace select default # back to the original deployment
+```
+
+Check `terraform workspace show` before every plan/apply, and use
+non-overlapping VNet ranges, VLAN IDs and peering /30s across regions.
+
+## 9. Teardown
 
 ```bash
 # ⚠️  This immediately disrupts hybrid connectivity to Azure and deletes the VM.
-terraform destroy
+terraform destroy   # add -var-file=<region>.tfvars when in a non-default workspace
 ```
-
-## 9. Resource inventory
-
-| # | Resource | Provider | Action |
-|---|---|---|---|
-| | ExpressRoute Circuit (my-expressroute-circuit) | Azure | `data` — by name + RG |
-| | Resource Group | Azure | `data` — my-resource-group |
-| | Network Edge device (your-ne-device) | Equinix | `data` — by UUID |
-| | Azure ER service profile | Equinix | `data` — by UUID |
-| 1 | **Fabric Connection NE → Azure ER, PRIMARY** | **Equinix** | **resource — EVPL_VC, VD a-side, redundancy priority PRIMARY** |
-| 2 | **Fabric Connection NE → Azure ER, SECONDARY** | **Equinix** | **resource — EVPL_VC, joins PRIMARY's redundancy group** |
-| 3 | **ExpressRoute Private Peering** | **Azure** | **resource — primary + secondary /30 subnets** |
-| 4 | **Hub VNet + GatewaySubnet + workload subnet** | **Azure** | **resource** |
-| 5 | **Virtual Network Gateway** | **Azure** | **resource — type ExpressRoute, SKU Standard** |
-| 6 | **VNet Gateway ↔ ER Circuit connection** | **Azure** | **resource** |
-| 7 | **NSG (allow SSH + ICMP + on-prem ping-test ICMP)** | **Azure** | **resource — 3 rules, associated to workload subnet** |
-| 8 | **Route table (BGP propagation enabled)** | **Azure** | **resource — associated to workload subnet** |
-| 9 | **SSH public key (fred-ssh-key)** | **Azure** | **resource — registered for VM admin access, reusable across VMs** |
-| 10 | **Linux VM + NIC + public IP** | **Azure** | **resource** |
-
-NE BGP configuration is **not** a Terraform resource — see [Manual BGP config](#manual-bgp-config-ne-device).

@@ -10,7 +10,7 @@
 # │  CREATED by this Terraform                                               │
 # │  EQX   : Fabric Connection NE → Azure ER, PRIMARY   (EVPL_VC / VD a-side)│
 # │          Fabric Connection NE → Azure ER, SECONDARY (redundancy group)   │
-# │          NE BGP peering is NOT managed here — see README section 7,     │
+# │          NE BGP peering is NOT managed here — see README section 6,     │
 # │          Manual BGP config (NE devices are self-managed/BYOL by default)│
 # │  Azure : ExpressRoute private peering (primary + secondary /30)          │
 # │          VNet + GatewaySubnet + workload subnet                          │
@@ -34,6 +34,23 @@ terraform {
       source  = "equinix/equinix"
       version = ">= 1.20, < 5.0"
     }
+  }
+}
+
+###############################################################################
+# Locals
+###############################################################################
+
+locals {
+  # Prefix for every created asset: <project_name>-<metro code>, e.g. fred-n8n-pa
+  name_prefix = "${var.project_name}-${lower(var.equinix_azure_metro_code)}"
+
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    Owner       = var.owner
+    Region      = var.region_label
   }
 }
 
@@ -93,7 +110,7 @@ data "equinix_fabric_service_profile" "azure_er" {
 ###############################################################################
 
 resource "equinix_fabric_connection" "ne_to_azure_primary" {
-  name      = "${var.equinix_connection_prefix}-azure-pri"
+  name      = "${local.name_prefix}-azure-pri"
   type      = "EVPL_VC"
   bandwidth = var.ne_azure_bandwidth_mbps
 
@@ -147,7 +164,7 @@ resource "equinix_fabric_connection" "ne_to_azure_primary" {
 ###############################################################################
 
 resource "equinix_fabric_connection" "ne_to_azure_secondary" {
-  name      = "${var.equinix_connection_prefix}-azure-sec"
+  name      = "${local.name_prefix}-azure-sec"
   type      = "EVPL_VC"
   bandwidth = var.ne_azure_bandwidth_mbps
 
@@ -228,7 +245,7 @@ resource "azurerm_express_route_circuit_peering" "private" {
 ###############################################################################
 
 resource "azurerm_virtual_network" "hub" {
-  name                = "${var.project_name}-vnet"
+  name                = "${local.name_prefix}-vnet"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
   address_space       = [var.vnet_address_space]
@@ -245,7 +262,7 @@ resource "azurerm_subnet" "gateway" {
 }
 
 resource "azurerm_subnet" "workload" {
-  name                 = "${var.project_name}-snet-workload"
+  name                 = "${local.name_prefix}-snet-workload"
   resource_group_name  = data.azurerm_resource_group.this.name
   virtual_network_name = azurerm_virtual_network.hub.name
   address_prefixes     = [var.workload_subnet_prefix]
@@ -256,7 +273,7 @@ resource "azurerm_subnet" "workload" {
 ###############################################################################
 
 resource "azurerm_virtual_network_gateway" "hub" {
-  name                = "${var.project_name}-vng"
+  name                = "${local.name_prefix}-vng"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -280,7 +297,7 @@ resource "azurerm_virtual_network_gateway" "hub" {
 ###############################################################################
 
 resource "azurerm_virtual_network_gateway_connection" "er" {
-  name                = "${var.project_name}-vng-conn-er"
+  name                = "${local.name_prefix}-vng-conn-er"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -302,7 +319,7 @@ resource "azurerm_virtual_network_gateway_connection" "er" {
 ###############################################################################
 
 resource "azurerm_network_security_group" "workload" {
-  name                = "${var.project_name}-nsg-workload"
+  name                = "${local.name_prefix}-nsg-workload"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -361,7 +378,7 @@ resource "azurerm_subnet_network_security_group_association" "workload" {
 ###############################################################################
 
 resource "azurerm_route_table" "workload" {
-  name                          = "${var.project_name}-rt-workload"
+  name                          = "${local.name_prefix}-rt-workload"
   location                      = var.azure_region
   resource_group_name           = data.azurerm_resource_group.this.name
   bgp_route_propagation_enabled = true
@@ -379,7 +396,7 @@ resource "azurerm_subnet_route_table_association" "workload" {
 ###############################################################################
 
 resource "azurerm_ssh_public_key" "fred" {
-  name                = "fred-ssh-key"
+  name                = "${local.name_prefix}-ssh-key"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
   public_key          = var.admin_ssh_public_key
@@ -388,7 +405,7 @@ resource "azurerm_ssh_public_key" "fred" {
 }
 
 resource "azurerm_public_ip" "vm" {
-  name                = "${var.project_name}-pip-vm"
+  name                = "${local.name_prefix}-pip-vm"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
   allocation_method   = "Static"
@@ -398,7 +415,7 @@ resource "azurerm_public_ip" "vm" {
 }
 
 resource "azurerm_network_interface" "vm" {
-  name                = "${var.project_name}-nic-vm"
+  name                = "${local.name_prefix}-nic-vm"
   location            = var.azure_region
   resource_group_name = data.azurerm_resource_group.this.name
 
@@ -413,7 +430,7 @@ resource "azurerm_network_interface" "vm" {
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                  = "${var.project_name}-vm"
+  name                  = "${local.name_prefix}-vm"
   location              = var.azure_region
   resource_group_name   = data.azurerm_resource_group.this.name
   size                  = var.vm_size
@@ -440,18 +457,4 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   tags = local.common_tags
-}
-
-###############################################################################
-# Locals
-###############################################################################
-
-locals {
-  common_tags = {
-    Project     = var.project_name
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-    Owner       = var.owner
-    Region      = "Dublin"
-  }
 }

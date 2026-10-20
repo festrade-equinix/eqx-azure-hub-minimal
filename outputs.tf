@@ -98,7 +98,7 @@ output "vm_ssh_key_id" {
 # ─── BGP summary ──────────────────────────────────────────────────────────────
 
 output "bgp_summary" {
-  description = "Expected BGP configuration for both NE <-> Azure sessions — not applied by Terraform (NE devices are self-managed/BYOL by default), reference values for the manual config in README section 7."
+  description = "Expected BGP configuration for both NE <-> Azure sessions — not applied by Terraform (NE devices are self-managed/BYOL by default), reference values for the manual config in README section 6."
   value = {
     primary = {
       local_ip   = cidrhost(var.azure_primary_peer_subnet, 1)
